@@ -1,116 +1,126 @@
 ﻿# dreamlover-skill
 
-> Anime / game virtual character distillation skill repo.
+> *"搞出来大模型的简直是码神，使用AI编码解放了前端兄弟，还要解放后端兄弟，测试兄弟，运维兄弟，解放网安兄弟，解放ic兄弟，最后解放自己解放全人类（本skill几乎完全由codex生成）"*
 >
-> GitHub: https://github.com/tobemorelucky/dreamlover-skill
-
-`dreamlover-skill` is a meta-skill for turning character materials into reusable agent skills.
-It takes text sources such as official profiles, plot summaries, quote collections, wiki pages, and user notes, then separates them into three layers:
-
-- `canon`: directly supported facts
-- `persona`: behavior and interaction patterns summarized from the materials
-- `style_examples`: wording, rhythm, and short example lines
-
-The goal is to keep factual setting, behavioral inference, and language style from getting mixed together.
-
----
-
-## What It Does
-
-This repository helps you:
-
-- build a new character skill from raw text materials
-- update an existing character when new materials appear
-- correct fact drift, behavior drift, or style drift separately
-- keep version snapshots for generated character packages
-
-It is designed for text-first character distillation, not large-scale raw corpus storage.
+> 把动漫 / 游戏虚拟角色的原材料蒸馏成一个真正能长期使用的 Agent Skill。
+>
+> [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+> [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
+> [![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
+> [![Agent Skill](https://img.shields.io/badge/Agent-Skill-green)](https://github.com/tobemorelucky/dreamlover-skill)
+>
+> 提供角色设定、剧情摘要、台词摘录、百科整理，或者你的主观描述，生成一个可持续演化的角色 Skill。
+>
+> 仓库地址：[tobemorelucky/dreamlover-skill](https://github.com/tobemorelucky/dreamlover-skill)
+>
+> [安装](#安装) · [使用](#使用) · [效果示例](#效果示例) · [项目结构](#项目结构) · [注意事项](#注意事项) · [English](README_EN.md)
 
 ---
 
-## Core Layering
+## 这是什么
 
-| Layer | Purpose | Allowed content |
-| --- | --- | --- |
-| `canon` | factual layer | objective facts, explicit plot events, explicit identity relationships, explicit setting attributes, explicit official statements |
-| `persona` | behavior layer | behavior patterns, emotional tendencies, interaction style, relationship progression logic, boundaries and preferences |
-| `style_examples` | expression layer | address habits, sentence rhythm, verbal tics, short example lines |
+`dreamlover-skill` 不是单个角色 Skill，而是一个 **meta-skill**。
 
-Recommended runtime order:
+它做的事情很简单：
 
-1. Read `canon.md` for facts.
-2. Read `persona.md` for behavior and reactions.
-3. Read `style_examples.md` for wording texture.
+- 读取角色原材料
+- 按可信度整理来源
+- 拆成 `canon / persona / style_examples`
+- 生成一个新的角色子 Skill
+- 支持纠错、增量更新和版本快照
+
+它适合这样的目标：
+
+- 想把动漫 / 游戏角色蒸馏成长期可复用的 Agent Skill
+- 想区分“这是设定事实”与“这是行为归纳”
+- 想让角色回答时既不乱编 lore，也不只会模仿口头禅
 
 ---
 
-## Installation
+## 核心结构
+
+每个角色 Skill 都由三层组成：
+
+| 层 | 作用 | 允许内容 |
+|------|------|------|
+| `canon` | 事实层 | 客观事实、明确剧情事件、明确身份关系、明确设定属性、明确官方口径 |
+| `persona` | 行为层 | 行为模式、情绪反应倾向、互动方式、关系推进逻辑、禁忌和偏好 |
+| `style_examples` | 表达层 | 称呼习惯、句式节奏、语气词、短样例句 |
+
+运行逻辑建议：
+
+`先读 canon 判断什么是真的 -> 再读 persona 判断 ta 会怎么反应 -> 最后用 style_examples 决定怎么说`
+
+---
+
+## 安装
 
 ### Claude Code
 
-Clone this repository into your Claude skill directory:
+Claude Code 会从 Skill 目录中发现本仓库。
 
 ```bash
+# 安装到全局
 git clone https://github.com/tobemorelucky/dreamlover-skill ~/.claude/skills/dreamlover-skill
-```
 
-Or for a project-local install:
-
-```bash
+# 或安装到当前项目
 git clone https://github.com/tobemorelucky/dreamlover-skill .claude/skills/dreamlover-skill
 ```
 
 ### Codex
 
-If you want to use it in Codex, place it under your skills directory:
+如果你也想在 Codex 环境中使用：
 
 ```bash
 git clone https://github.com/tobemorelucky/dreamlover-skill $CODEX_HOME/skills/dreamlover-skill
 ```
 
-### Requirements
+### 环境要求
 
 - Python 3.9+
-- A skill-capable agent environment
-- Text source materials
+- 支持 Skill 目录加载的 Agent 环境
+- 第一版仅处理文本资料
+- 不需要 GPU，不需要本地模型，不需要 Docker
 
 ---
 
-## How To Use
+## 使用
 
-### 1. Prepare source materials
+### 1. 准备原材料
 
-V0.1 is text-only. Typical inputs include:
+第一版支持：
 
-- official character profiles
-- plot summaries
-- quote collections
-- wiki / encyclopedia summaries
-- user-written notes
+- 官方角色设定
+- 剧情摘要
+- 台词摘录
+- wiki / 百科式介绍
+- 用户自己的补充描述
 
-### 2. Audit the materials
+### 2. 做来源审计
 
-Before writing the character package, sort materials by reliability:
+推荐按照以下优先级处理：
 
-1. official material
-2. quoted plot or dialogue excerpts
-3. fandom wiki or community summaries
-4. user summaries
+1. 官方资料
+2. 原作剧情 / 台词摘录
+3. 社区 wiki / 百科整理
+4. 用户主观总结
 
-### 3. Build the three layers
+### 3. 生成角色 Skill
 
-Write the character package in this order:
+推荐流程：
 
-1. `canon`
-2. `persona`
-3. `style_examples`
-4. child `SKILL.md`
-5. version snapshot
+1. 录入角色名、作品名、目标用途
+2. 做 source audit
+3. 先写 `canon`
+4. 再写 `persona`
+5. 最后写 `style_examples`
+6. 组合成角色子 `SKILL.md`
+7. 生成版本快照
 
-### 4. Use the helper tools
+### 4. 使用工具辅助
 
 ```bash
-python tools/slugify.py "Raiden Shogun"
+python tools/slugify.py "雷电将军"
 python tools/source_normalizer.py --input sample.txt --type wiki --output normalized.json
 python tools/evidence_indexer.py --input normalized.json --output indexed.json
 python tools/style_extractor.py --input sample.txt --output style.json
@@ -120,92 +130,90 @@ python tools/version_manager.py --action snapshot --slug raiden-shogun
 
 ---
 
-## Generated Output
+## 效果示例
 
-Each generated character package lives under:
-
-```text
-characters/{slug}/
-├── SKILL.md
-├── canon.md
-├── persona.md
-├── style_examples.md
-├── meta.json
-├── sources/
-│   └── normalized.json
-└── versions/
-```
-
----
-
-## Example
-
-A sample package is included at:
+仓库内置了一个最小 demo：
 
 - `characters/demo-hero/`
 
-It shows the expected structure for:
+它包含：
 
-- `canon.md`
-- `persona.md`
-- `style_examples.md`
-- child `SKILL.md`
-- `sources/normalized.json`
-- version snapshots
+- `canon.md`：事实层示例
+- `persona.md`：行为层示例
+- `style_examples.md`：表达层示例
+- `SKILL.md`：最终角色入口
+- `sources/normalized.json`：示例输入资料
+- `versions/`：快照记录
+
+你可以直接把这个 demo 当作模板，再替换成真实角色。
 
 ---
 
-## Project Structure
+## 功能特性
+
+### 当前能力
+
+- 文本资料归一化
+- 来源可信度分层
+- `canon / persona / style_examples` 严格拆分
+- 角色包生成
+- 版本快照与回滚基础设施
+
+### 当前不包含
+
+- 图片解析
+- 音频解析
+- 视频解析
+- 自动联网抓取资料
+- 高级语义审查器
+
+---
+
+## 项目结构
 
 ```text
 dreamlover-skill/
 ├── SKILL.md
 ├── README.md
+├── README_EN.md
+├── AGENTS.md
 ├── docs/
+│   ├── PRD.md
+│   ├── evidence-model.md
+│   ├── canon-persona-boundary.md
+│   ├── safety.md
+│   ├── input-contract.md
+│   └── output-contract.md
 ├── prompts/
+│   ├── intake.md
+│   ├── source_audit.md
+│   ├── canon_builder.md
+│   ├── persona_builder.md
+│   ├── style_examples_builder.md
+│   ├── skill_composer.md
+│   ├── correction_handler.md
+│   └── evolution_merge.md
 ├── tools/
+│   ├── slugify.py
+│   ├── source_normalizer.py
+│   ├── evidence_indexer.py
+│   ├── style_extractor.py
+│   ├── skill_writer.py
+│   └── version_manager.py
 ├── characters/
+│   └── demo-hero/
 └── versions/
 ```
 
-Key directories:
-
-- `docs/`: contracts, safety rules, evidence rules
-- `prompts/`: phase-specific prompt guides
-- `tools/`: helper scripts for normalization, indexing, writing, and snapshots
-- `characters/`: generated character packages
-- `versions/`: repository-level contract snapshots
-
 ---
 
-## Design Rules
+## 注意事项
 
-- Keep `canon` factual and directly supported.
-- Keep `persona` inferential, but never factual.
-- Keep `style_examples` focused on expression, not lore.
-- Fix fact errors in `canon`.
-- Fix behavior drift in `persona`.
-- Fix voice drift in `style_examples`.
-
----
-
-## Current Scope
-
-V0.1 currently includes:
-
-- repository skeleton
-- prompts, docs, and tools
-- text-first workflow
-- character package layout
-- version snapshot support
-
-V0.1 does not yet include:
-
-- image parsing
-- audio parsing
-- video parsing
-- online source fetching
-- advanced semantic policy enforcement
+- 资料质量决定还原度
+- `canon` 只允许直接支持的内容，不能写推断
+- `persona` 只允许行为归纳，不能新增设定
+- `style_examples` 只负责表达质感，不负责制造 lore
+- 这个项目的目标是蒸馏角色，不是复制原文数据库
 
 ---
 
