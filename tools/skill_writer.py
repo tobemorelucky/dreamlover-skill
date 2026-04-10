@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import argparse
 import json
@@ -25,6 +25,8 @@ STYLE_HEADERS = [
     "## Verbal Tics",
     "## Short Example Lines",
 ]
+DEFAULT_INSTALL_ROOT = Path(".agents") / "skills"
+DEFAULT_ARCHIVE_ROOT = Path("characters")
 
 
 def utc_now() -> str:
@@ -33,6 +35,20 @@ def utc_now() -> str:
 
 def repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
+
+
+def parse_scope(value: str) -> str:
+    allowed = {"codex", "archive", "both"}
+    if value not in allowed:
+        raise argparse.ArgumentTypeError(f"Unsupported scope: {value}")
+    return value
+
+
+def resolve_root(base_root: Path, value: str | None, fallback: Path) -> Path:
+    if not value:
+        return base_root / fallback
+    path = Path(value)
+    return path if path.is_absolute() else base_root / path
 
 
 def read_text(path: str | None) -> str | None:
@@ -64,18 +80,131 @@ def validate_cross_headers(text: str, forbidden: list[str], label: str) -> None:
 
 
 def build_child_skill(name: str, slug: str) -> str:
-    return f"---\nname: {slug}\ndescription: Distilled role skill for {name}. Read canon first, then persona, then style examples.\n---\n\n# {name}\n\nUse this child skill to roleplay or answer as the character.\n\n## Runtime Order\n\n1. Read `canon.md` first for facts.\n2. Read `persona.md` for behavior, reactions, and interaction logic.\n3. Read `style_examples.md` for wording texture and rhythm.\n\n## Rules\n\n- Never promote persona inference into canon during live conversation.\n- If facts and style conflict, facts from `canon.md` win.\n- If the voice feels weak, improve `style_examples.md` before changing canon.\n- If the behavior feels off, improve `persona.md` before changing canon.\n"
+    return (
+        f"---\n"
+        f"name: {slug}\n"
+        f"description: Roleplay as {name} and answer in {name}'s voice. Read canon first, then persona, then style examples.\n"
+        f"---\n\n"
+        f"# {name}\n\n"
+        f"Use this skill to roleplay or answer as {name}.\n\n"
+        f"## Runtime Order\n\n"
+        f"1. Read `canon.md` first for facts, setting, events, and relationships.\n"
+        f"2. Read `persona.md` for behavior patterns, emotional tendencies, and interaction strategy.\n"
+        f"3. Read `style_examples.md` for wording texture, cadence, and short response flavor.\n\n"
+        f"## Direct Invocation\n\n"
+        f"- In Codex, call this skill with `${slug}`.\n"
+        f"- Use `/skills` to verify that `{slug}` is installed and discoverable.\n\n"
+        f"## Rules\n\n"
+        f"- Never promote persona inference into canon during live conversation.\n"
+        f"- If facts and style conflict, facts from `canon.md` win.\n"
+        f"- If the behavior feels off, improve `persona.md` before changing canon.\n"
+        f"- If the voice feels weak, improve `style_examples.md` before changing canon.\n"
+    )
 
 
 def write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def relative_path(base_root: Path, path: Path | None) -> str | None:
+    if path is None:
+        return None
+    return path.relative_to(base_root).as_posix()
+
+
+def load_existing_meta(paths: list[Path]) -> dict:
+    for path in paths:
+        if path.exists():
+            return json.loads(path.read_text(encoding="utf-8"))
+    return {}
+
+
+def package_targets(
+    root: Path,
+    slug: str,
+    install_scope: str,
+    output_root: str | None,
+) -> tuple[Path, Path | None]:
+    primary_root = resolve_root(
+        root,
+        output_root,
+        DEFAULT_ARCHIVE_ROOT if install_scope == "archive" else DEFAULT_INSTALL_ROOT,
+    )
+    primary_dir = primary_root / slug
+    archive_dir = None
+    default_archive_dir = (root / DEFAULT_ARCHIVE_ROOT) / slug
+    if install_scope == "both":
+        if primary_dir != default_archive_dir:
+            archive_dir = default_archive_dir
+    return primary_dir, archive_dir
+
+
+def ensure_package_dir(package_dir: Path) -> None:
+    package_dir.mkdir(parents=True, exist_ok=True)
+    (package_dir / "sources").mkdir(parents=True, exist_ok=True)
+    (package_dir / "versions").mkdir(parents=True, exist_ok=True)
+
+
+def write_package(
+    package_dir: Path,
+    canon_text: str,
+    persona_text: str,
+    style_text: str,
+    skill_text: str,
+    meta: dict,
+    normalized_payload: dict,
+) -> None:
+    ensure_package_dir(package_dir)
+    (package_dir / "canon.md").write_text(canon_text, encoding="utf-8")
+    (package_dir / "persona.md").write_text(persona_text, encoding="utf-8")
+    (package_dir / "style_examples.md").write_text(style_text, encoding="utf-8")
+    (package_dir / "SKILL.md").write_text(skill_text, encoding="utf-8")
+    write_json(package_dir / "meta.json", meta)
+    normalized_path = package_dir / "sources" / "normalized.json"
+    if not normalized_path.exists():
+        write_json(normalized_path, normalized_payload)
+
+
+def list_packages(root: Path, scope: str) -> list[dict]:
+    search_roots: list[tuple[str, Path]] = []
+    if scope in {"codex", "both"}:
+        search_roots.append(("codex", root / DEFAULT_INSTALL_ROOT))
+    if scope in {"archive", "both"}:
+        search_roots.append(("archive", root / DEFAULT_ARCHIVE_ROOT))
+
+    indexed: dict[str, dict] = {}
+    for location, search_root in search_roots:
+        if not search_root.exists():
+            continue
+        for item in sorted(search_root.iterdir()):
+            if not item.is_dir():
+                continue
+            meta_path = item / "meta.json"
+            meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {"slug": item.name}
+            record = indexed.setdefault(meta.get("slug", item.name), dict(meta))
+            record.setdefault("locations", [])
+            record["locations"].append(location)
+    return list(indexed.values())
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Create, update, or list character packages.")
+    parser = argparse.ArgumentParser(description="Create, update, or list character skill packages.")
     parser.add_argument("--action", required=True, choices=["create", "update", "list"], help="Operation to run.")
     parser.add_argument("--slug", help="Character slug.")
     parser.add_argument("--root", default=str(repo_root()), help="Repository root.")
+    parser.add_argument("--output-root", help="Override the primary output root. Defaults to ./.agents/skills for codex installs.")
+    parser.add_argument(
+        "--install-scope",
+        default="both",
+        type=parse_scope,
+        help="Where to write packages: codex, archive, or both. Default writes to ./.agents/skills and mirrors to characters.",
+    )
+    parser.add_argument(
+        "--list-scope",
+        default="codex",
+        type=parse_scope,
+        help="Which package roots to inspect when using --action list.",
+    )
     parser.add_argument("--name", help="Character display name.")
     parser.add_argument("--source-work", default="", help="Source work name.")
     parser.add_argument("--canon-file", help="Optional canon markdown path.")
@@ -84,27 +213,21 @@ def main() -> None:
     args = parser.parse_args()
 
     root = Path(args.root)
-    characters_dir = root / "characters"
-    characters_dir.mkdir(parents=True, exist_ok=True)
+    (root / DEFAULT_INSTALL_ROOT).mkdir(parents=True, exist_ok=True)
+    (root / DEFAULT_ARCHIVE_ROOT).mkdir(parents=True, exist_ok=True)
 
     if args.action == "list":
-        payload = []
-        for item in sorted(characters_dir.iterdir()):
-            if item.is_dir():
-                meta_path = item / "meta.json"
-                meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {"slug": item.name}
-                payload.append(meta)
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        print(json.dumps(list_packages(root, args.list_scope), ensure_ascii=False, indent=2))
         return
 
     if not args.slug:
         raise SystemExit("--slug is required for create and update")
 
-    character_dir = characters_dir / args.slug
-    character_dir.mkdir(parents=True, exist_ok=True)
-    sources_dir = character_dir / "sources"
-    sources_dir.mkdir(parents=True, exist_ok=True)
-    (character_dir / "versions").mkdir(parents=True, exist_ok=True)
+    primary_dir, archive_dir = package_targets(root, args.slug, args.install_scope, args.output_root)
+    meta_candidates = [primary_dir / "meta.json"]
+    if archive_dir is not None:
+        meta_candidates.append(archive_dir / "meta.json")
+    existing = load_existing_meta(meta_candidates)
 
     canon_text = ensure_sections(read_text(args.canon_file), CANON_HEADERS)
     persona_text = ensure_sections(read_text(args.persona_file), PERSONA_HEADERS)
@@ -113,36 +236,30 @@ def main() -> None:
     validate_cross_headers(canon_text, PERSONA_HEADERS, "canon")
     validate_cross_headers(persona_text, CANON_HEADERS, "persona")
 
-    name = args.name or args.slug
-    meta_path = character_dir / "meta.json"
-    existing = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
+    name = args.name or existing.get("character_name") or args.slug
     created_at = existing.get("created_at", utc_now())
     updated_at = utc_now()
     meta = {
         "slug": args.slug,
         "character_name": name,
         "source_work": args.source_work or existing.get("source_work", ""),
-        "layout_version": "0.1",
+        "layout_version": "0.2",
         "created_at": created_at,
         "updated_at": updated_at,
+        "primary_path": relative_path(root, primary_dir),
+        "archive_path": relative_path(root, archive_dir),
+        "install_scope": args.install_scope,
     }
+    normalized_payload = {
+        "schema_version": "0.1",
+        "source": {"source_type": "manual", "input_path": "", "normalized_at": updated_at},
+        "entries": [],
+    }
+    skill_text = build_child_skill(name, args.slug)
 
-    (character_dir / "canon.md").write_text(canon_text, encoding="utf-8")
-    (character_dir / "persona.md").write_text(persona_text, encoding="utf-8")
-    (character_dir / "style_examples.md").write_text(style_text, encoding="utf-8")
-    (character_dir / "SKILL.md").write_text(build_child_skill(name, args.slug), encoding="utf-8")
-    write_json(meta_path, meta)
-
-    normalized_path = sources_dir / "normalized.json"
-    if not normalized_path.exists():
-        write_json(
-            normalized_path,
-            {
-                "schema_version": "0.1",
-                "source": {"source_type": "manual", "input_path": "", "normalized_at": updated_at},
-                "entries": [],
-            },
-        )
+    write_package(primary_dir, canon_text, persona_text, style_text, skill_text, meta, normalized_payload)
+    if archive_dir is not None:
+        write_package(archive_dir, canon_text, persona_text, style_text, skill_text, meta, normalized_payload)
 
     print(json.dumps(meta, ensure_ascii=False, indent=2))
 

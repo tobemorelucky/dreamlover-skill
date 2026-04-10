@@ -1,57 +1,46 @@
-﻿# dreamlover-skill
+# dreamlover-skill
 
-> *"The people who built large models are basically coding gods. AI-assisted coding already helped frontend people, and it should help backend people, QA people, ops people, security people, IC people, and eventually help everyone liberate themselves and all humanity. (This skill was generated almost entirely by Codex.)"*
+> *"The people who built large models are basically coding gods. AI-assisted coding created Raiden Shogun, and it should go on to create Makima, Marin Kitagawa, Violet Evergarden, Rem, Utaha Kasumigaoka, Nino Nakano, Mai Sakurajima, and eventually a perfect world filled with beautiful girls."*
 >
-> Distill anime and game virtual character materials into a reusable agent skill.
+> Distill anime and game virtual character materials into a reusable Agent Skill.
 >
 > [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 > [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
 > [![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
 > [![Agent Skill](https://img.shields.io/badge/Agent-Skill-green)](https://github.com/tobemorelucky/dreamlover-skill)
 >
-> Feed it character profiles, plot summaries, quote collections, wiki pages, or your own notes, and it will turn them into a layered, reusable character skill.
+> Feed it character settings, plot summaries, quote collections, wiki pages, or your own notes, and it will turn them into a sustainable character skill.
 >
 > Repository: [tobemorelucky/dreamlover-skill](https://github.com/tobemorelucky/dreamlover-skill)
 >
-> [Installation](#installation) · [Usage](#usage) · [Example](#example) · [Project Structure](#project-structure) · [中文](README.md)
+> [Installation](#installation) · [Usage](#usage) · [Example](#example) · [Project Structure](#project-structure) · [Notes](#notes) · [中文](README.md)
 
 ---
 
 ## What It Is
 
-`dreamlover-skill` is not a single character skill. It is a **meta-skill** for building character skills.
+`dreamlover-skill` is a character skill generator.
 
-It helps you:
+It organizes character materials into three layers:
 
-- ingest character source materials
-- sort them by evidence quality
-- split them into `canon / persona / style_examples`
-- generate a child character skill
-- support corrections, updates, and version snapshots
+- `canon.md`: facts, setting, explicit events, relationships
+- `persona.md`: behavior patterns, interaction strategy, boundaries
+- `style_examples.md`: expression style and short example lines
 
-It is useful when you want a character skill that is both believable and structured: factually grounded, behaviorally consistent, and stylistically recognizable.
+After generation, it installs the result as a real child skill discoverable by Codex:
 
----
-
-## Core Layering
-
-| Layer | Purpose | Allowed content |
-| --- | --- | --- |
-| `canon` | factual layer | objective facts, explicit plot events, explicit identity relationships, explicit setting attributes, explicit official statements |
-| `persona` | behavior layer | behavior patterns, emotional tendencies, interaction style, relationship progression logic, boundaries and preferences |
-| `style_examples` | expression layer | address habits, sentence rhythm, verbal tics, short example lines |
-
-Recommended runtime order:
-
-1. Read `canon.md` for facts.
-2. Read `persona.md` for behavior.
-3. Read `style_examples.md` for wording texture.
+- primary install path: `./.agents/skills/{slug}/`
+- archive mirror: `characters/{slug}/`
+- direct invocation: `$slug`
+- discovery check: `/skills`
 
 ---
 
 ## Installation
 
 ### Claude Code
+
+Claude Code will discover this repository from a skill directory.
 
 ```bash
 # global install
@@ -63,15 +52,24 @@ git clone https://github.com/tobemorelucky/dreamlover-skill .claude/skills/dream
 
 ### Codex
 
+If you want to use it in Codex:
+
 ```bash
 git clone https://github.com/tobemorelucky/dreamlover-skill $CODEX_HOME/skills/dreamlover-skill
+```
+
+Generated child skills are installed by default into:
+
+```text
+./.agents/skills/{slug}/
 ```
 
 ### Requirements
 
 - Python 3.9+
-- A skill-capable agent runtime
-- Text-based source materials
+- A skill-capable agent environment
+- Text-only materials for v1
+- No GPU, local model, or Docker required
 
 ---
 
@@ -79,34 +77,39 @@ git clone https://github.com/tobemorelucky/dreamlover-skill $CODEX_HOME/skills/d
 
 ### 1. Prepare source materials
 
-V0.1 is text-only. Typical inputs include:
+V0.1 supports:
 
-- official character profiles
+- official character settings
 - plot summaries
 - quote collections
-- wiki or encyclopedia summaries
-- user-written notes
+- wiki / encyclopedia summaries
+- user notes
 
 ### 2. Audit sources
 
-Recommended evidence priority:
+Recommended priority:
 
 1. official material
-2. quoted plot or dialogue excerpts
-3. fandom wiki or community summaries
+2. plot / dialogue excerpts
+3. community wiki summaries
 4. user summaries
 
-### 3. Build the character package
+### 3. Generate a character skill
 
-Recommended order:
+Recommended flow:
 
-1. `canon`
-2. `persona`
-3. `style_examples`
-4. child `SKILL.md`
-5. version snapshot
+1. invoke `$dreamlover-skill`
+2. provide character name, source work, and use case
+3. perform source audit
+4. build `canon`
+5. build `persona`
+6. build `style_examples`
+7. compose child `SKILL.md`
+8. install to `./.agents/skills/{slug}/`
+9. optionally mirror to `characters/{slug}/`
+10. create a snapshot
 
-### 4. Use the helper tools
+### 4. Use helper tools
 
 ```bash
 python tools/slugify.py "Raiden Shogun"
@@ -114,36 +117,65 @@ python tools/source_normalizer.py --input sample.txt --type wiki --output normal
 python tools/evidence_indexer.py --input normalized.json --output indexed.json
 python tools/style_extractor.py --input sample.txt --output style.json
 python tools/skill_writer.py --action create --slug raiden-shogun --name "Raiden Shogun"
-python tools/version_manager.py --action snapshot --slug raiden-shogun
+python tools/version_manager.py --action snapshot --slug raiden-shogun --scope codex
+```
+
+### 5. Call it directly in Codex
+
+After generation:
+
+1. run `/skills`
+2. verify the slug appears
+3. call `$slug` directly
+
+Example:
+
+```text
+/skills
+$raiden-shogun
+$rem
 ```
 
 ---
 
 ## Example
 
-A minimal example package is included at:
+The repository includes a minimal demo:
 
 - `characters/demo-hero/`
 
-It shows the expected structure for:
+And the same role can be installed as a directly callable child skill:
 
+- `./.agents/skills/demo-hero/`
+
+Each generated child skill contains at least:
+
+- `SKILL.md`
 - `canon.md`
 - `persona.md`
 - `style_examples.md`
-- child `SKILL.md`
+- `meta.json`
 - `sources/normalized.json`
-- version snapshots
+- `versions/`
+
+The shortest end-to-end path is:
+
+1. generate a role
+2. see it in `/skills`
+3. talk to it with `$slug`
 
 ---
 
 ## Features
 
-### Included in V0.1
+### Current capabilities
 
 - text normalization
 - source reliability layering
 - strict `canon / persona / style_examples` separation
 - character package generation
+- installation to `./.agents/skills/{slug}/`
+- archive mirroring to `characters/{slug}/`
 - snapshot and rollback foundations
 
 ### Not included yet
@@ -151,8 +183,8 @@ It shows the expected structure for:
 - image parsing
 - audio parsing
 - video parsing
-- online source fetching
-- advanced semantic policy enforcement
+- automatic online source retrieval
+- advanced semantic review
 
 ---
 
@@ -163,30 +195,29 @@ dreamlover-skill/
 ├── SKILL.md
 ├── README.md
 ├── README_EN.md
+├── AGENTS.md
+├── .agents/
+│   └── skills/
+│       └── {slug}/
 ├── docs/
 ├── prompts/
 ├── tools/
 ├── characters/
+│   └── {slug}/
 └── versions/
 ```
-
-Key directories:
-
-- `docs/`: contracts, evidence rules, safety rules
-- `prompts/`: prompt guides for each build stage
-- `tools/`: helper scripts for normalization, indexing, writing, and snapshots
-- `characters/`: generated character packages
-- `versions/`: repository-level contract snapshots
 
 ---
 
 ## Notes
 
-- Material quality directly affects fidelity.
-- `canon` must stay factual and directly supported.
-- `persona` must stay inferential and behavioral.
-- `style_examples` should shape language, not lore.
-- The goal is character distillation, not raw corpus copying.
+- source quality determines fidelity
+- `canon` must stay factual and directly supported
+- `persona` must stay behavioral and inferential
+- `style_examples` should shape expression, not invent lore
+- Codex discovers `./.agents/skills/{slug}/`, not `characters/{slug}/`
+- if `/skills` does not refresh, restart or refresh Codex and check again
+- the goal is distillation, not raw corpus copying
 
 ---
 

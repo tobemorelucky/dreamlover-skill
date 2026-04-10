@@ -2,7 +2,13 @@
 
 ## Character Package Layout
 
-Each generated character package lives under `characters/{slug}/`:
+Each generated character package is installed under `./.agents/skills/{slug}/`.
+
+This is the primary runtime location that Codex should discover through `/skills` and direct invocation with `$slug`.
+
+If archive mirroring is enabled, the same package is also written to `characters/{slug}/` as a repository-local archive copy.
+
+Each package contains:
 
 - `SKILL.md`: child skill entrypoint
 - `canon.md`: factual layer
@@ -51,6 +57,9 @@ Each generated character package lives under `characters/{slug}/`:
 - `layout_version`
 - `created_at`
 - `updated_at`
+- `primary_path`
+- `archive_path`
+- `install_scope`
 
 ## Child Skill Rule
 
@@ -60,3 +69,6 @@ The child `SKILL.md` must tell the runtime:
 - use `persona.md` for behavior and interaction strategy
 - use `style_examples.md` for wording texture
 - never upgrade persona inference into canon during conversation
+- include YAML front matter with `name` and `description`
+- make `description` explicit that the skill is for roleplay or answering in the character's voice
+- be directly discoverable from `./.agents/skills/{slug}/`
