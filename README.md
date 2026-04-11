@@ -1,6 +1,6 @@
 # dreamlover-skill
 
-> *"搞出来大模型的简直是码神，使用 AI 编码创造了雷电将军，还要创造玛奇玛，创造喜多川海梦，创造薇尔莉特，创造蕾姆，创造霞之丘诗羽，创造中野二乃，创造樱岛麻衣，最后创造一个只有美少女的完美世界。"*
+> *"搞出来大模型的简直是码神，使用 AI 编码创造了雷电将军，还要创造玛奇玛，创造喜多川海梦，创造薇尔莉特，创造蕾姆，创造霞之丘诗羽，创造中野二乃，创造樱岛麻衣，最后创造一个只有老婆的完美世界。"*
 >
 > 把动漫 / 游戏虚拟角色的原材料蒸馏成一个真正能长期使用的 Agent Skill。
 >
@@ -117,8 +117,11 @@ python tools/source_normalizer.py --input sample.txt --type wiki --output normal
 python tools/evidence_indexer.py --input normalized.json --output indexed.json
 python tools/style_extractor.py --input sample.txt --output style.json
 python tools/skill_writer.py --action create --slug raiden-shogun --name "Raiden Shogun"
+python tools/skill_linter.py --slug raiden-shogun --scope codex
 python tools/version_manager.py --action snapshot --slug raiden-shogun --scope codex
 ```
+
+`skill_writer.py` 默认会在写入后自动做一轮 lint，检查子 skill 是否缺文件、缺 front matter、缺 section，或者还残留明显占位内容。
 
 ### 5. 在 Codex 中直接调用
 

@@ -101,6 +101,7 @@ Use these tools when deterministic output helps:
 - `tools/evidence_indexer.py`
 - `tools/style_extractor.py`
 - `tools/skill_writer.py`
+- `tools/skill_linter.py`
 - `tools/version_manager.py`
 
 ## Output Layout
@@ -126,4 +127,5 @@ Before finishing:
 - make sure `style_examples` only handles language texture
 - make sure corrections modify the right layer
 - make sure the child skill is discoverable from `./.agents/skills/{slug}/`
+- make sure the installed package passes `tools/skill_linter.py` without errors
 - make sure a snapshot exists after creation or major updates

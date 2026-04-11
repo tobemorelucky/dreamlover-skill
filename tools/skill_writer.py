@@ -5,6 +5,8 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+from skill_linter import lint_skill_dir
+
 CANON_HEADERS = [
     "## Basic Identity",
     "## Setting Attributes",
@@ -27,6 +29,22 @@ STYLE_HEADERS = [
 ]
 DEFAULT_INSTALL_ROOT = Path(".agents") / "skills"
 DEFAULT_ARCHIVE_ROOT = Path("characters")
+SECTION_PLACEHOLDERS = {
+    "## Basic Identity": "- No confirmed identity facts recorded yet.",
+    "## Setting Attributes": "- No confirmed setting attributes recorded yet.",
+    "## Key Plot Events": "- No confirmed plot events recorded yet.",
+    "## Confirmed Relationships": "- No confirmed relationships recorded yet.",
+    "## Official Statements And Notes": "- No official statements recorded yet.",
+    "## Behavior Patterns": "- No summarized behavior patterns recorded yet.",
+    "## Emotional Tendencies": "- No summarized emotional tendencies recorded yet.",
+    "## Interaction Style": "- No summarized interaction strategy recorded yet.",
+    "## Relationship Progression": "- No summarized relationship progression recorded yet.",
+    "## Boundaries And Preferences": "- No summarized boundaries or preferences recorded yet.",
+    "## Address Patterns": "- No style address patterns recorded yet.",
+    "## Rhythm And Sentence Shape": "- No style rhythm notes recorded yet.",
+    "## Verbal Tics": "- No style verbal tics recorded yet.",
+    "## Short Example Lines": "- No short example lines recorded yet.",
+}
 
 
 def utc_now() -> str:
@@ -58,19 +76,82 @@ def read_text(path: str | None) -> str | None:
 
 
 def default_markdown(headers: list[str]) -> str:
-    blocks = [f"{header}\n\n- TODO" for header in headers]
+    blocks = [f"{header}\n\n{SECTION_PLACEHOLDERS[header]}" for header in headers]
     return "\n\n".join(blocks) + "\n"
+
+
+def is_placeholder_line(line: str) -> bool:
+    stripped = line.strip()
+    if not stripped:
+        return False
+    return stripped == "- TODO" or stripped in SECTION_PLACEHOLDERS.values()
+
+
+def normalize_header_line(line: str) -> str:
+    return line.strip().lstrip("\ufeff")
+
+
+def parse_section_segments(text: str, headers: list[str]) -> dict[str, list[list[str]]]:
+    segments = {header: [] for header in headers}
+    current_header: str | None = None
+    current_lines: list[str] = []
+
+    def flush() -> None:
+        nonlocal current_header, current_lines
+        if current_header is not None:
+            segments[current_header].append(current_lines[:])
+        current_header = None
+        current_lines = []
+
+    for raw_line in text.splitlines():
+        stripped = normalize_header_line(raw_line)
+        if stripped in headers:
+            flush()
+            current_header = stripped
+            current_lines = []
+            continue
+        if stripped.startswith("## "):
+            flush()
+            continue
+        if current_header is not None:
+            current_lines.append(raw_line)
+
+    flush()
+    return segments
+
+
+def choose_section_body(segments: list[list[str]], placeholder: str) -> str:
+    best_lines: list[str] | None = None
+    best_score = -1
+
+    for candidate in segments:
+        meaningful = [line for line in candidate if line.strip() and not is_placeholder_line(line)]
+        score = len(meaningful)
+        if score > best_score:
+            best_score = score
+            best_lines = candidate
+
+    lines = [line.rstrip() for line in (best_lines or [])]
+    lines = [line for line in lines if line.strip()]
+    if not lines:
+        return placeholder
+
+    meaningful = [line for line in lines if not is_placeholder_line(line)]
+    if meaningful:
+        lines = meaningful
+
+    return "\n".join(lines)
 
 
 def ensure_sections(text: str | None, headers: list[str]) -> str:
     if not text or not text.strip():
         return default_markdown(headers)
-    result = text.rstrip() + "\n"
-    existing = {line.strip() for line in result.splitlines() if line.startswith("## ")}
+    segments = parse_section_segments(text, headers)
+    blocks = []
     for header in headers:
-        if header not in existing:
-            result += f"\n{header}\n\n- TODO\n"
-    return result
+        body = choose_section_body(segments[header], SECTION_PLACEHOLDERS[header])
+        blocks.append(f"{header}\n\n{body}")
+    return "\n\n".join(blocks) + "\n"
 
 
 def validate_cross_headers(text: str, forbidden: list[str], label: str) -> None:
@@ -119,6 +200,13 @@ def load_existing_meta(paths: list[Path]) -> dict:
     return {}
 
 
+def load_existing_text(paths: list[Path]) -> str | None:
+    for path in paths:
+        if path.exists():
+            return path.read_text(encoding="utf-8")
+    return None
+
+
 def package_targets(
     root: Path,
     slug: str,
@@ -163,6 +251,13 @@ def write_package(
     normalized_path = package_dir / "sources" / "normalized.json"
     if not normalized_path.exists():
         write_json(normalized_path, normalized_payload)
+
+
+def lint_package(package_dir: Path) -> dict:
+    report = lint_skill_dir(package_dir)
+    if report["errors"]:
+        raise ValueError(json.dumps(report, ensure_ascii=False, indent=2))
+    return report
 
 
 def list_packages(root: Path, scope: str) -> list[dict]:
@@ -210,6 +305,7 @@ def main() -> None:
     parser.add_argument("--canon-file", help="Optional canon markdown path.")
     parser.add_argument("--persona-file", help="Optional persona markdown path.")
     parser.add_argument("--style-file", help="Optional style markdown path.")
+    parser.add_argument("--skip-lint", action="store_true", help="Skip post-write package linting.")
     args = parser.parse_args()
 
     root = Path(args.root)
@@ -229,9 +325,13 @@ def main() -> None:
         meta_candidates.append(archive_dir / "meta.json")
     existing = load_existing_meta(meta_candidates)
 
-    canon_text = ensure_sections(read_text(args.canon_file), CANON_HEADERS)
-    persona_text = ensure_sections(read_text(args.persona_file), PERSONA_HEADERS)
-    style_text = ensure_sections(read_text(args.style_file), STYLE_HEADERS)
+    canon_existing = load_existing_text([primary_dir / "canon.md"] + ([archive_dir / "canon.md"] if archive_dir else []))
+    persona_existing = load_existing_text([primary_dir / "persona.md"] + ([archive_dir / "persona.md"] if archive_dir else []))
+    style_existing = load_existing_text([primary_dir / "style_examples.md"] + ([archive_dir / "style_examples.md"] if archive_dir else []))
+
+    canon_text = ensure_sections(read_text(args.canon_file) or canon_existing, CANON_HEADERS)
+    persona_text = ensure_sections(read_text(args.persona_file) or persona_existing, PERSONA_HEADERS)
+    style_text = ensure_sections(read_text(args.style_file) or style_existing, STYLE_HEADERS)
 
     validate_cross_headers(canon_text, PERSONA_HEADERS, "canon")
     validate_cross_headers(persona_text, CANON_HEADERS, "persona")
@@ -261,7 +361,13 @@ def main() -> None:
     if archive_dir is not None:
         write_package(archive_dir, canon_text, persona_text, style_text, skill_text, meta, normalized_payload)
 
-    print(json.dumps(meta, ensure_ascii=False, indent=2))
+    lint_results: dict[str, dict] = {}
+    if not args.skip_lint:
+        lint_results["primary"] = lint_package(primary_dir)
+        if archive_dir is not None:
+            lint_results["archive"] = lint_package(archive_dir)
+
+    print(json.dumps({"package": meta, "lint": lint_results}, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

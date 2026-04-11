@@ -18,6 +18,14 @@ Each package contains:
 - `sources/normalized.json`: normalized source bundle or merge result
 - `versions/`: character-level snapshots
 
+Generated packages should also satisfy these lint expectations:
+
+- no missing required files
+- no duplicate required section headers
+- no cross-layer section headers mixed into the wrong file
+- child `SKILL.md` contains YAML front matter with `name` and `description`
+- published packages should not keep raw `TODO` placeholders
+
 ## Canon Sections
 
 `canon.md` should use these sections:

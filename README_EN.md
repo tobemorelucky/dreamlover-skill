@@ -117,8 +117,11 @@ python tools/source_normalizer.py --input sample.txt --type wiki --output normal
 python tools/evidence_indexer.py --input normalized.json --output indexed.json
 python tools/style_extractor.py --input sample.txt --output style.json
 python tools/skill_writer.py --action create --slug raiden-shogun --name "Raiden Shogun"
+python tools/skill_linter.py --slug raiden-shogun --scope codex
 python tools/version_manager.py --action snapshot --slug raiden-shogun --scope codex
 ```
+
+`skill_writer.py` now runs a post-write lint pass by default so the child skill is checked for missing files, missing front matter, missing sections, or obvious placeholder leftovers.
 
 ### 5. Call it directly in Codex
 
