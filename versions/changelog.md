@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.4
+
+- upgraded intake from a soft recommendation to a hard no-write gate
+- added source decision policy and input mode prompts to interactive intake
+- required confirmation of the intake summary before any files are created or modified
+- persisted source decision metadata into `meta.json` and `sources/normalized.json`
+
 ## v0.3
 
 - added intake-first generation rules to the top-level skill and intake prompt

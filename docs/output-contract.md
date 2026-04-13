@@ -72,6 +72,9 @@ Generated packages should also satisfy these lint expectations:
 - `target_use`
 - `source_types`
 - `allow_low_confidence_persona`
+- `source_decision_policy`
+- `input_mode`
+- `source_paths`
 - `layout_version`
 - `created_at`
 - `updated_at`

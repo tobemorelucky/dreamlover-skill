@@ -1,6 +1,6 @@
 ---
 name: dreamlover-skill
-description: Create or update distilled agent skills for anime and game virtual characters from text materials. Use when the task requires separating canon, persona, and style examples, then composing a reusable role skill.
+description: Always run intake first before creating or updating distilled agent skills for anime and game virtual characters. Use when the task requires separating canon, persona, and style examples, then composing a reusable role skill.
 ---
 
 # Dreamlover Skill
@@ -14,25 +14,43 @@ Use this skill when the user wants to:
 - merge new source materials into an existing character skill without collapsing canon and persona together
 - inspect what character skills are installed in `./.agents/skills/` or archived in `characters/`
 
-## Intake Gate
+## Hard Intake Gate
 
 If the user wants a new character skill but has not supplied enough intake information, stop and ask the intake questions before generating anything.
+If intake is incomplete, you are forbidden to create, update, or modify any character files.
 
 The minimum intake bundle is:
 
+- source decision policy
+- input mode: direct text or file path
 - character name
 - source work
 - target use
 - source material types: official, plot, quotes, wiki, or user description
 - whether low-confidence persona inference is allowed when materials are thin
 
-If the user says only something like "create a Rem skill", do not jump straight to `canon`, `persona`, or `style_examples`. Ask the missing intake questions first, summarize the intake, and only then continue.
+If the user says only something like "create a Rem skill", do not jump straight to `canon`, `persona`, or `style_examples`. Ask the missing intake questions first, summarize the intake, repeat the key facts back for confirmation, and only then continue.
+
+## Source Decision Policy
+
+Before any generation work, ask which source completion policy is allowed:
+
+1. only user-provided information
+2. official material plus wiki material
+3. official material plus user material
+
+Then ask how the directly provided material will arrive:
+
+1. direct text entered in chat or CLI
+2. file paths that should be read first
+
+If the user has not answered both source policy and input mode, the hard intake gate is still incomplete.
 
 ## Core Workflow
 
 Follow this order:
 
-1. Run intake first whenever the request is underspecified.
+1. Run the hard intake gate first whenever the request is underspecified.
 2. Collect and normalize the source materials.
 3. Audit each source by reliability.
 4. Build `canon` first.
@@ -120,6 +138,7 @@ Use these tools when deterministic output helps:
 - `tools/version_manager.py`
 
 Prefer `tools/skill_writer.py --interactive` when intake information is missing or incomplete.
+In interactive mode, do not allow any writes before the intake summary is confirmed.
 
 ## Output Layout
 
@@ -139,7 +158,8 @@ When archive mirroring is enabled, the same package should also exist under `cha
 
 Before finishing:
 
-- make sure intake happened before generation if the request started underspecified
+- make sure the hard intake gate completed before generation if the request started underspecified
+- make sure no character files were written before intake confirmation
 - make sure `canon` contains only directly supported material
 - make sure `persona` contains only summarized behavior
 - make sure `style_examples` only handles language texture

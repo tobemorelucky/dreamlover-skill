@@ -1,2 +1,10 @@
 ﻿__pycache__/
 *.pyc
+
+.tmp*/
+.temp*/
+
+.agents/skills/*/
+!/.agents/skills/demo-hero/
+
+characters/*/

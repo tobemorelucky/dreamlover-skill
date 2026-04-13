@@ -19,6 +19,8 @@ Each import should include:
 
 For intake-first generation, the minimum user-provided request bundle should include:
 
+- source decision policy
+- input mode: direct text or file path
 - character name
 - source work
 - target use
@@ -26,6 +28,7 @@ For intake-first generation, the minimum user-provided request bundle should inc
 - whether low-confidence persona inference is allowed when evidence is thin
 
 If these fields are incomplete, the generator should ask follow-up intake questions before creating the child skill.
+No character files should be created or modified before the user confirms the intake summary.
 
 ## Normalized Shape
 

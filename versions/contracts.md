@@ -34,3 +34,4 @@
 - Codex discovery should happen from the installed skill directory, not from the archive mirror
 - `skill_writer.py` runs a post-write lint pass by default and returns lint results alongside package metadata
 - `skill_writer.py --interactive` performs intake-first prompting and writes the intake bundle into `meta.json` and `sources/normalized.json`
+- the hard intake gate must complete and be confirmed before any character files are written

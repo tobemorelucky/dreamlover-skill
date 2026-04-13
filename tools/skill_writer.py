@@ -31,6 +31,26 @@ STYLE_HEADERS = [
 DEFAULT_INSTALL_ROOT = Path(".agents") / "skills"
 DEFAULT_ARCHIVE_ROOT = Path("characters")
 DEFAULT_SOURCE_TYPES = ["user"]
+DEFAULT_SOURCE_DECISION_POLICY = "user_only"
+DEFAULT_INPUT_MODE = "direct_text"
+SOURCE_DECISION_POLICIES = {
+    "1": "user_only",
+    "2": "official_wiki_only",
+    "3": "official_plus_user",
+}
+SOURCE_DECISION_LABELS = {
+    "user_only": "仅用用户提供的信息",
+    "official_wiki_only": "仅用官方资料+wiki资料",
+    "official_plus_user": "官方资料+用户资料",
+}
+INPUT_MODES = {
+    "1": "direct_text",
+    "2": "file_path",
+}
+INPUT_MODE_LABELS = {
+    "direct_text": "直接输送信息",
+    "file_path": "文件路径",
+}
 SOURCE_TYPE_SYNONYMS = {
     "official": "official",
     "official-setting": "official",
@@ -288,6 +308,26 @@ def prompt_yes_no(prompt: str, default: bool = False) -> bool:
             print("Please answer yes or no.")
 
 
+def prompt_choice(
+    prompt: str,
+    choices: dict[str, str],
+    default_key: str | None = None,
+    labels: dict[str, str] | None = None,
+) -> str:
+    default_suffix = f" [{default_key}]" if default_key else ""
+    while True:
+        print(prompt)
+        for key, value in choices.items():
+            label = labels.get(value, value) if labels else value
+            print(f"{key}. {label}")
+        value = input(f"Choose one{default_suffix}: ").strip()
+        if not value and default_key:
+            value = default_key
+        if value in choices:
+            return choices[value]
+        print("Please choose a valid option.")
+
+
 def prompt_multiline(prompt: str) -> str:
     print(f"{prompt} Finish with a line containing only {INTERACTIVE_SENTINEL}.")
     lines: list[str] = []
@@ -297,6 +337,23 @@ def prompt_multiline(prompt: str) -> str:
             break
         lines.append(line.rstrip())
     return "\n".join(lines).strip()
+
+
+def read_source_paths(raw_paths: str) -> tuple[list[str], str]:
+    paths: list[str] = []
+    contents: list[str] = []
+    for raw_line in raw_paths.splitlines():
+        candidate = raw_line.strip()
+        if not candidate:
+            continue
+        path = Path(candidate)
+        if not path.exists():
+            raise FileNotFoundError(f"Source path not found: {candidate}")
+        paths.append(candidate)
+        contents.append(path.read_text(encoding="utf-8"))
+    if not paths:
+        raise ValueError("At least one source path is required when input mode is file_path.")
+    return paths, "\n\n".join(contents).strip()
 
 
 def normalize_note_line(line: str) -> str:
@@ -458,6 +515,7 @@ def build_normalized_payload(
     canon_notes: str,
     persona_notes: str,
     style_notes: str,
+    source_paths: list[str],
     updated_at: str,
 ) -> dict:
     entries: list[dict] = []
@@ -486,6 +544,9 @@ def build_normalized_payload(
             "input_path": "",
             "normalized_at": updated_at,
             "source_types": intake["source_types"],
+            "source_decision_policy": intake["source_decision_policy"],
+            "input_mode": intake["input_mode"],
+            "source_paths": source_paths,
         },
         "intake": {
             "character_name": intake["character_name"],
@@ -493,6 +554,10 @@ def build_normalized_payload(
             "target_use": intake["target_use"],
             "source_types": intake["source_types"],
             "allow_low_confidence_persona": intake["allow_low_confidence_persona"],
+            "source_decision_policy": intake["source_decision_policy"],
+            "input_mode": intake["input_mode"],
+            "source_paths": source_paths,
+            "confirmed": intake["confirmed"],
         },
         "entries": entries,
     }
@@ -601,8 +666,28 @@ def list_packages(root: Path, scope: str) -> list[dict]:
     return list(indexed.values())
 
 
-def interactive_intake(existing: dict) -> tuple[str, str, str, list[str], bool, str, str, str, str]:
+def interactive_intake(existing: dict) -> dict:
     print("Interactive intake mode for character skill generation.")
+    source_decision_policy = prompt_choice(
+        "1. 这个角色是否允许使用可搜索到的公开资料补全？",
+        SOURCE_DECISION_POLICIES,
+        next(
+            (key for key, value in SOURCE_DECISION_POLICIES.items() if value == existing.get("source_decision_policy")),
+            "1",
+        ),
+        SOURCE_DECISION_LABELS,
+    )
+
+    input_mode = prompt_choice(
+        "2. 请选择直接提供的文件信息或者文件路径",
+        INPUT_MODES,
+        next(
+            (key for key, value in INPUT_MODES.items() if value == existing.get("input_mode")),
+            "1",
+        ),
+        INPUT_MODE_LABELS,
+    )
+
     character_name = prompt_required("Character name", existing.get("character_name") or None)
     source_work = prompt_required("Source work", existing.get("source_work") or None)
     target_use = prompt_required("Target use", existing.get("target_use") or "roleplay conversation")
@@ -617,9 +702,18 @@ def interactive_intake(existing: dict) -> tuple[str, str, str, list[str], bool, 
         "Allow low-confidence persona inference when materials are limited",
         existing.get("allow_low_confidence_persona", False),
     )
-    raw_material_notes = prompt_multiline(
-        "Paste a short raw-material summary or any notes you already have."
-    )
+
+    source_paths: list[str] = []
+    if input_mode == "file_path":
+        raw_path_block = prompt_multiline(
+            "Provide one or more file paths that contain the source material."
+        )
+        source_paths, raw_material_notes = read_source_paths(raw_path_block)
+    else:
+        raw_material_notes = prompt_multiline(
+            "Paste a short raw-material summary or any notes you already have."
+        )
+
     canon_notes = prompt_multiline(
         "Enter canon notes with optional prefixes identity:/attribute:/event:/relation:/official:"
     )
@@ -629,57 +723,95 @@ def interactive_intake(existing: dict) -> tuple[str, str, str, list[str], bool, 
     style_notes = prompt_multiline(
         "Enter style notes with optional prefixes address:/rhythm:/tic:/example:"
     )
-    return (
-        character_name,
-        source_work,
-        target_use,
-        source_types,
-        allow_low_confidence,
-        raw_material_notes,
-        canon_notes,
-        persona_notes,
-        style_notes,
-    )
 
+    effective_slug = slugify(character_name)
+    summary_lines = [
+        f"- Character: {character_name}",
+        f"- Slug: {effective_slug}",
+        f"- Source work: {source_work}",
+        f"- Target use: {target_use}",
+        f"- Source decision policy: {SOURCE_DECISION_LABELS[source_decision_policy]}",
+        f"- Input mode: {INPUT_MODE_LABELS[input_mode]}",
+        f"- Source types: {', '.join(source_types)}",
+        f"- Allow low-confidence persona: {'yes' if allow_low_confidence else 'no'}",
+    ]
+    if source_paths:
+        summary_lines.append(f"- Source paths: {', '.join(source_paths)}")
+    print("Confirm the intake summary before any files are written:")
+    print("\n".join(summary_lines))
+    confirmed = prompt_yes_no("Confirm this intake summary and allow file generation", False)
 
-def build_interactive_outputs(existing: dict, forced_slug: str | None) -> tuple[str, str, str, dict, str, dict]:
-    (
-        character_name,
-        source_work,
-        target_use,
-        source_types,
-        allow_low_confidence,
-        raw_material_notes,
-        canon_notes,
-        persona_notes,
-        style_notes,
-    ) = interactive_intake(existing)
-
-    updated_at = utc_now()
-    canon_blocks = parse_prefixed_notes(canon_notes, CANON_HEADERS, CANON_PREFIXES, "## Basic Identity")
-    persona_blocks = parse_prefixed_notes(persona_notes, PERSONA_HEADERS, PERSONA_PREFIXES, "## Behavior Patterns")
-    style_blocks = parse_prefixed_notes(style_notes, STYLE_HEADERS, STYLE_PREFIXES, "## Address Patterns")
-    canon_text = build_canon_markdown(character_name, source_work, canon_blocks)
-    persona_text = build_persona_markdown(persona_blocks, target_use, allow_low_confidence)
-    style_text = build_style_markdown(style_blocks, target_use)
-    effective_slug = forced_slug or slugify(character_name)
-    intake = {
+    return {
         "slug": effective_slug,
         "character_name": character_name,
         "source_work": source_work,
         "target_use": target_use,
         "source_types": source_types,
         "allow_low_confidence_persona": allow_low_confidence,
+        "source_decision_policy": source_decision_policy,
+        "input_mode": input_mode,
+        "source_paths": source_paths,
+        "raw_material_notes": raw_material_notes,
+        "canon_notes": canon_notes,
+        "persona_notes": persona_notes,
+        "style_notes": style_notes,
+        "confirmed": confirmed,
     }
+
+
+def build_interactive_outputs(existing: dict, forced_slug: str | None) -> tuple[str, str, str, dict, str, dict]:
+    intake = interactive_intake(existing)
+    if forced_slug:
+        intake["slug"] = forced_slug
+    if not intake["confirmed"]:
+        raise SystemExit(
+            json.dumps(
+                {
+                    "status": "aborted",
+                    "reason": "intake_not_confirmed",
+                    "message": "Hard intake gate blocked generation before any files were written.",
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+
+    updated_at = utc_now()
+    canon_blocks = parse_prefixed_notes(intake["canon_notes"], CANON_HEADERS, CANON_PREFIXES, "## Basic Identity")
+    persona_blocks = parse_prefixed_notes(
+        intake["persona_notes"],
+        PERSONA_HEADERS,
+        PERSONA_PREFIXES,
+        "## Behavior Patterns",
+    )
+    style_blocks = parse_prefixed_notes(
+        intake["style_notes"],
+        STYLE_HEADERS,
+        STYLE_PREFIXES,
+        "## Address Patterns",
+    )
+    canon_text = build_canon_markdown(intake["character_name"], intake["source_work"], canon_blocks)
+    persona_text = build_persona_markdown(
+        persona_blocks,
+        intake["target_use"],
+        intake["allow_low_confidence_persona"],
+    )
+    style_text = build_style_markdown(style_blocks, intake["target_use"])
     normalized_payload = build_normalized_payload(
         intake,
-        raw_material_notes,
-        canon_notes,
-        persona_notes,
-        style_notes,
+        intake["raw_material_notes"],
+        intake["canon_notes"],
+        intake["persona_notes"],
+        intake["style_notes"],
+        intake["source_paths"],
         updated_at,
     )
-    skill_text = build_child_skill(character_name, effective_slug, target_use, allow_low_confidence)
+    skill_text = build_child_skill(
+        intake["character_name"],
+        intake["slug"],
+        intake["target_use"],
+        intake["allow_low_confidence_persona"],
+    )
     return canon_text, persona_text, style_text, normalized_payload, skill_text, intake
 
 
@@ -756,6 +888,8 @@ def main() -> None:
             args.allow_low_confidence_persona,
             existing.get("allow_low_confidence_persona", False),
         )
+        source_decision_policy = existing.get("source_decision_policy", DEFAULT_SOURCE_DECISION_POLICY)
+        input_mode = existing.get("input_mode", DEFAULT_INPUT_MODE)
         normalized_payload = {
             "schema_version": "0.3",
             "source": {
@@ -763,6 +897,9 @@ def main() -> None:
                 "input_path": "",
                 "normalized_at": utc_now(),
                 "source_types": source_types,
+                "source_decision_policy": source_decision_policy,
+                "input_mode": input_mode,
+                "source_paths": existing.get("source_paths", []),
             },
             "intake": {
                 "slug": effective_slug,
@@ -771,6 +908,10 @@ def main() -> None:
                 "target_use": target_use,
                 "source_types": source_types,
                 "allow_low_confidence_persona": allow_low_confidence,
+                "source_decision_policy": source_decision_policy,
+                "input_mode": input_mode,
+                "source_paths": existing.get("source_paths", []),
+                "confirmed": True,
             },
             "entries": [],
         }
@@ -789,6 +930,9 @@ def main() -> None:
         "target_use": target_use,
         "source_types": source_types,
         "allow_low_confidence_persona": allow_low_confidence,
+        "source_decision_policy": normalized_payload["intake"]["source_decision_policy"],
+        "input_mode": normalized_payload["intake"]["input_mode"],
+        "source_paths": normalized_payload["intake"].get("source_paths", []),
         "layout_version": "0.3",
         "created_at": created_at,
         "updated_at": updated_at,

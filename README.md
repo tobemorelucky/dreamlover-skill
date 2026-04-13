@@ -58,7 +58,7 @@ git clone https://github.com/tobemorelucky/dreamlover-skill $CODEX_HOME/skills/d
 
 ## 使用
 
-### 1. intake 先行
+### 1. Hard Intake Gate
 
 当你只说：
 
@@ -67,7 +67,18 @@ $dreamlover-skill
 帮我创建雷姆这个角色 skill
 ```
 
-生成器不应该直接乱写，而应该先进入 intake，至少问你：
+生成器不应该直接乱写，而应该先进入 hard intake gate，至少先问你：
+
+- 这个角色是否允许使用可搜索到的公开资料补全？
+- 来源策略：
+  - 仅用用户提供的信息
+  - 仅用官方资料+wiki资料
+  - 官方资料+用户资料
+- 直接提供的信息方式：
+  - 直接输送信息
+  - 文件路径
+
+然后再继续问：
 
 - 角色名
 - 作品名
@@ -75,7 +86,8 @@ $dreamlover-skill
 - 资料类型：官方设定 / 剧情摘要 / 台词摘录 / wiki / 用户描述
 - 是否允许基于不足资料做低置信度 persona 归纳
 
-只有 intake 补齐之后，才继续生成。
+只有在所有问题回答完、并且生成器复述关键信息得到确认之后，才继续生成。
+在此之前，不允许创建或修改任何角色文件。
 
 ### 2. 生成角色 skill
 
@@ -105,7 +117,7 @@ python tools/skill_linter.py --slug raiden-shogun --scope codex
 python tools/version_manager.py --action snapshot --slug raiden-shogun --scope codex
 ```
 
-`skill_writer.py --interactive` 会逐项提问，并把 intake 信息写入：
+`skill_writer.py --interactive` 会逐项提问，并且在确认前不会写任何文件。确认之后会把 intake 信息写入：
 
 - `canon.md`
 - `persona.md`
@@ -136,9 +148,20 @@ $dreamlover-skill
 帮我创建雷姆这个角色 skill
 ```
 
-接下来先回答几轮 intake，例如：
+接下来预期应该先被问到：
 
 ```text
+1. 这个角色是否允许使用可搜索到的公开资料补全？
+2. 请选择直接提供的文件信息或者文件路径
+```
+
+然后再继续补全角色名、作品名、目标用途等信息，并在生成前收到一段关键信息确认。
+
+例如：
+
+```text
+来源策略：官方资料+用户资料
+输入方式：直接输送信息
 角色名：雷姆
 作品名：Re:从零开始的异世界生活
 目标用途：日常角色对话
