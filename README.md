@@ -2,14 +2,12 @@
 
 > *"搞出来大模型的简直是码神，使用 AI 编码创造了雷电将军，还要创造玛奇玛，创造喜多川海梦，创造薇尔莉特，创造蕾姆，创造霞之丘诗羽，创造中野二乃，创造樱岛麻衣，最后创造一个只有老婆的完美世界。"*
 >
-> 把动漫 / 游戏虚拟角色的原材料蒸馏成一个真正能长期使用的 Agent Skill。
+> 把动漫 / 游戏虚拟角色的原材料蒸馏成一个真正能长期使用、并且能直接被 Codex 调用的 Agent Skill。
 >
 > [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 > [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
 > [![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
 > [![Agent Skill](https://img.shields.io/badge/Agent-Skill-green)](https://github.com/tobemorelucky/dreamlover-skill)
->
-> 提供角色设定、剧情摘要、台词摘录、百科整理，或者你的主观描述，生成一个可持续演化的角色 Skill。
 >
 > 仓库地址：[tobemorelucky/dreamlover-skill](https://github.com/tobemorelucky/dreamlover-skill)
 >
@@ -19,15 +17,15 @@
 
 ## 这是什么
 
-`dreamlover-skill` 是一个角色 skill 生成器。
+`dreamlover-skill` 是一个“生成器 skill”。
 
-它负责把角色资料整理成三层结构：
+它负责把角色资料整理成三层：
 
-- `canon.md`：事实层，只保留事实、设定、明确事件、关系
-- `persona.md`：行为层，只保留行为模式、互动策略、边界
-- `style_examples.md`：表达层，只保留表达风格和短句样例
+- `canon.md`：只保留事实、设定、明确事件、关系
+- `persona.md`：只保留行为模式、互动策略、边界
+- `style_examples.md`：只保留表达风格和短句样例
 
-生成完成后，会把角色安装成一个可直接被 Codex 发现和调用的子 skill：
+生成完成后，会把角色安装成一个可直接被 Codex 发现和调用的“子 skill”：
 
 - 主输出目录：`./.agents/skills/{slug}/`
 - 归档镜像：`characters/{slug}/`
@@ -40,66 +38,51 @@
 
 ### Claude Code
 
-Claude Code 会从 Skill 目录中发现本仓库。
-
 ```bash
-# 安装到全局
 git clone https://github.com/tobemorelucky/dreamlover-skill ~/.claude/skills/dreamlover-skill
-
-# 或安装到当前项目
-git clone https://github.com/tobemorelucky/dreamlover-skill .claude/skills/dreamlover-skill
 ```
 
 ### Codex
 
-如果你也想在 Codex 环境中使用：
-
 ```bash
 git clone https://github.com/tobemorelucky/dreamlover-skill $CODEX_HOME/skills/dreamlover-skill
-```
-
-生成出的角色子 skill 默认安装到：
-
-```text
-./.agents/skills/{slug}/
 ```
 
 ### 环境要求
 
 - Python 3.9+
 - 支持 Skill 目录加载的 Agent 环境
-- 第一版仅处理文本资料
-- 不需要 GPU，不需要本地模型，不需要 Docker
+- 第一版只处理文本资料
 
 ---
 
 ## 使用
 
-### 1. 准备原材料
+### 1. intake 先行
 
-第一版支持：
+当你只说：
 
-- 官方角色设定
-- 剧情摘要
-- 台词摘录
-- wiki / 百科式介绍
-- 用户自己的补充描述
+```text
+$dreamlover-skill
+帮我创建雷姆这个角色 skill
+```
 
-### 2. 做来源审计
+生成器不应该直接乱写，而应该先进入 intake，至少问你：
 
-推荐按照以下优先级处理：
+- 角色名
+- 作品名
+- 目标用途
+- 资料类型：官方设定 / 剧情摘要 / 台词摘录 / wiki / 用户描述
+- 是否允许基于不足资料做低置信度 persona 归纳
 
-1. 官方资料
-2. 原作剧情 / 台词摘录
-3. 社区 wiki / 百科整理
-4. 用户主观总结
+只有 intake 补齐之后，才继续生成。
 
-### 3. 生成角色 Skill
+### 2. 生成角色 skill
 
 推荐流程：
 
-1. 使用 `$dreamlover-skill` 调用生成器
-2. 录入角色名、作品名、目标用途
+1. 使用 `$dreamlover-skill`
+2. 回答 intake 提问
 3. 做 source audit
 4. 先写 `canon`
 5. 再写 `persona`
@@ -109,21 +92,28 @@ git clone https://github.com/tobemorelucky/dreamlover-skill $CODEX_HOME/skills/d
 9. 如有需要，同时镜像到 `characters/{slug}/`
 10. 生成版本快照
 
-### 4. 使用工具辅助
+### 3. 使用工具辅助
 
 ```bash
 python tools/slugify.py "雷电将军"
 python tools/source_normalizer.py --input sample.txt --type wiki --output normalized.json
 python tools/evidence_indexer.py --input normalized.json --output indexed.json
 python tools/style_extractor.py --input sample.txt --output style.json
+python tools/skill_writer.py --action create --interactive
 python tools/skill_writer.py --action create --slug raiden-shogun --name "Raiden Shogun"
 python tools/skill_linter.py --slug raiden-shogun --scope codex
 python tools/version_manager.py --action snapshot --slug raiden-shogun --scope codex
 ```
 
-`skill_writer.py` 默认会在写入后自动做一轮 lint，检查子 skill 是否缺文件、缺 front matter、缺 section，或者还残留明显占位内容。
+`skill_writer.py --interactive` 会逐项提问，并把 intake 信息写入：
 
-### 5. 在 Codex 中直接调用
+- `canon.md`
+- `persona.md`
+- `style_examples.md`
+- `sources/normalized.json`
+- 子 `SKILL.md`
+
+### 4. 在 Codex 中直接调用
 
 生成完成后：
 
@@ -139,6 +129,32 @@ $raiden-shogun
 $rem
 ```
 
+### 5. 最小端到端示例
+
+```text
+$dreamlover-skill
+帮我创建雷姆这个角色 skill
+```
+
+接下来先回答几轮 intake，例如：
+
+```text
+角色名：雷姆
+作品名：Re:从零开始的异世界生活
+目标用途：日常角色对话
+资料类型：wiki,用户描述
+允许低置信度 persona：是
+```
+
+生成后：
+
+```text
+/skills
+$rem
+```
+
+这样就能直接按角色口吻开始对话。
+
 ---
 
 ## 效果示例
@@ -146,27 +162,22 @@ $rem
 仓库内置了一个最小 demo：
 
 - `characters/demo-hero/`
-
-并且角色也可以被安装为真正可调用的子 skill：
-
 - `./.agents/skills/demo-hero/`
 
 生成后的角色 skill 至少包含：
 
-- `SKILL.md`：最终角色入口
-- `canon.md`：事实层
-- `persona.md`：行为层
-- `style_examples.md`：表达层
+- `SKILL.md`
+- `canon.md`
+- `persona.md`
+- `style_examples.md`
 - `meta.json`
 - `sources/normalized.json`
 - `versions/`
 
-你可以直接把这个 demo 当作模板，再替换成真实角色。
-
-最小端到端流程是：
+最小端到端流程就是：
 
 1. 生成角色
-2. 在 `/skills` 中看到它
+2. 在 `/skills` 里看到它
 3. 使用 `$slug` 开始对话
 
 ---
@@ -178,7 +189,8 @@ $rem
 - 文本资料归一化
 - 来源可信度分层
 - `canon / persona / style_examples` 严格拆分
-- 角色包生成
+- intake-first 生成流程
+- CLI 交互式创建：`python tools/skill_writer.py --action create --interactive`
 - 角色安装到 `./.agents/skills/{slug}/`
 - 归档镜像到 `characters/{slug}/`
 - 版本快照与回滚基础设施
@@ -205,28 +217,8 @@ dreamlover-skill/
 │   └── skills/
 │       └── {slug}/
 ├── docs/
-│   ├── PRD.md
-│   ├── evidence-model.md
-│   ├── canon-persona-boundary.md
-│   ├── safety.md
-│   ├── input-contract.md
-│   └── output-contract.md
 ├── prompts/
-│   ├── intake.md
-│   ├── source_audit.md
-│   ├── canon_builder.md
-│   ├── persona_builder.md
-│   ├── style_examples_builder.md
-│   ├── skill_composer.md
-│   ├── correction_handler.md
-│   └── evolution_merge.md
 ├── tools/
-│   ├── slugify.py
-│   ├── source_normalizer.py
-│   ├── evidence_indexer.py
-│   ├── style_extractor.py
-│   ├── skill_writer.py
-│   └── version_manager.py
 ├── characters/
 │   └── {slug}/
 └── versions/

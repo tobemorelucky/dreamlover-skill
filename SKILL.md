@@ -14,19 +14,34 @@ Use this skill when the user wants to:
 - merge new source materials into an existing character skill without collapsing canon and persona together
 - inspect what character skills are installed in `./.agents/skills/` or archived in `characters/`
 
+## Intake Gate
+
+If the user wants a new character skill but has not supplied enough intake information, stop and ask the intake questions before generating anything.
+
+The minimum intake bundle is:
+
+- character name
+- source work
+- target use
+- source material types: official, plot, quotes, wiki, or user description
+- whether low-confidence persona inference is allowed when materials are thin
+
+If the user says only something like "create a Rem skill", do not jump straight to `canon`, `persona`, or `style_examples`. Ask the missing intake questions first, summarize the intake, and only then continue.
+
 ## Core Workflow
 
 Follow this order:
 
-1. Collect and normalize the source materials.
-2. Audit each source by reliability.
-3. Build `canon` first.
-4. Build `persona` from source materials plus the confirmed `canon`.
-5. Extract `style_examples`.
-6. Compose the child `SKILL.md`.
-7. Install the child skill under `./.agents/skills/{slug}/`.
-8. Mirror it to `characters/{slug}/` when archive output is enabled.
-9. Snapshot the installed skill into its `versions/` directory.
+1. Run intake first whenever the request is underspecified.
+2. Collect and normalize the source materials.
+3. Audit each source by reliability.
+4. Build `canon` first.
+5. Build `persona` from source materials plus the confirmed `canon`.
+6. Extract `style_examples`.
+7. Compose the child `SKILL.md`.
+8. Install the child skill under `./.agents/skills/{slug}/`.
+9. Mirror it to `characters/{slug}/` when archive output is enabled.
+10. Snapshot the installed skill into its `versions/` directory.
 
 Do not skip the ordering. `persona` may depend on `canon`, but `canon` must not depend on `persona`.
 
@@ -79,7 +94,7 @@ Read these files only when needed:
 - `docs/PRD.md` for product goals and lifecycle
 - `docs/evidence-model.md` for evidence priority and conflict handling
 - `docs/canon-persona-boundary.md` for layer separation rules
-- `docs/input-contract.md` for accepted source formats
+- `docs/input-contract.md` for accepted source formats and intake minimums
 - `docs/output-contract.md` for child skill layout
 - `docs/safety.md` for content and copyright boundaries
 
@@ -104,6 +119,8 @@ Use these tools when deterministic output helps:
 - `tools/skill_linter.py`
 - `tools/version_manager.py`
 
+Prefer `tools/skill_writer.py --interactive` when intake information is missing or incomplete.
+
 ## Output Layout
 
 Each generated character should be installed under `./.agents/skills/{slug}/`:
@@ -122,6 +139,7 @@ When archive mirroring is enabled, the same package should also exist under `cha
 
 Before finishing:
 
+- make sure intake happened before generation if the request started underspecified
 - make sure `canon` contains only directly supported material
 - make sure `persona` contains only summarized behavior
 - make sure `style_examples` only handles language texture

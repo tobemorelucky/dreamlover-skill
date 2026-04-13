@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from skill_linter import lint_skill_dir
+from slugify import slugify
 
 CANON_HEADERS = [
     "## Basic Identity",
@@ -29,6 +30,31 @@ STYLE_HEADERS = [
 ]
 DEFAULT_INSTALL_ROOT = Path(".agents") / "skills"
 DEFAULT_ARCHIVE_ROOT = Path("characters")
+DEFAULT_SOURCE_TYPES = ["user"]
+SOURCE_TYPE_SYNONYMS = {
+    "official": "official",
+    "official-setting": "official",
+    "official_profile": "official",
+    "官方": "official",
+    "官方设定": "official",
+    "plot": "plot",
+    "plot-summary": "plot",
+    "story": "plot",
+    "剧情": "plot",
+    "剧情摘要": "plot",
+    "quotes": "quotes",
+    "quote": "quotes",
+    "dialogue": "quotes",
+    "台词": "quotes",
+    "台词摘录": "quotes",
+    "wiki": "wiki",
+    "百科": "wiki",
+    "user": "user",
+    "manual": "user",
+    "user-description": "user",
+    "用户": "user",
+    "用户描述": "user",
+}
 SECTION_PLACEHOLDERS = {
     "## Basic Identity": "- No confirmed identity facts recorded yet.",
     "## Setting Attributes": "- No confirmed setting attributes recorded yet.",
@@ -45,6 +71,37 @@ SECTION_PLACEHOLDERS = {
     "## Verbal Tics": "- No style verbal tics recorded yet.",
     "## Short Example Lines": "- No short example lines recorded yet.",
 }
+CANON_PREFIXES = {
+    "identity": "## Basic Identity",
+    "basic": "## Basic Identity",
+    "attribute": "## Setting Attributes",
+    "setting": "## Setting Attributes",
+    "event": "## Key Plot Events",
+    "plot": "## Key Plot Events",
+    "relation": "## Confirmed Relationships",
+    "relationship": "## Confirmed Relationships",
+    "official": "## Official Statements And Notes",
+    "note": "## Official Statements And Notes",
+}
+PERSONA_PREFIXES = {
+    "behavior": "## Behavior Patterns",
+    "emotion": "## Emotional Tendencies",
+    "interaction": "## Interaction Style",
+    "progression": "## Relationship Progression",
+    "relationship": "## Relationship Progression",
+    "boundary": "## Boundaries And Preferences",
+    "preference": "## Boundaries And Preferences",
+}
+STYLE_PREFIXES = {
+    "address": "## Address Patterns",
+    "rhythm": "## Rhythm And Sentence Shape",
+    "sentence": "## Rhythm And Sentence Shape",
+    "tic": "## Verbal Tics",
+    "verbal": "## Verbal Tics",
+    "example": "## Short Example Lines",
+    "line": "## Short Example Lines",
+}
+INTERACTIVE_SENTINEL = "END"
 
 
 def utc_now() -> str:
@@ -73,6 +130,30 @@ def read_text(path: str | None) -> str | None:
     if not path:
         return None
     return Path(path).read_text(encoding="utf-8")
+
+
+def write_json(path: Path, payload: dict) -> None:
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def relative_path(base_root: Path, path: Path | None) -> str | None:
+    if path is None:
+        return None
+    return path.relative_to(base_root).as_posix()
+
+
+def load_existing_meta(paths: list[Path]) -> dict:
+    for path in paths:
+        if path.exists():
+            return json.loads(path.read_text(encoding="utf-8"))
+    return {}
+
+
+def load_existing_text(paths: list[Path]) -> str | None:
+    for path in paths:
+        if path.exists():
+            return path.read_text(encoding="utf-8")
+    return None
 
 
 def default_markdown(headers: list[str]) -> str:
@@ -123,23 +204,19 @@ def parse_section_segments(text: str, headers: list[str]) -> dict[str, list[list
 def choose_section_body(segments: list[list[str]], placeholder: str) -> str:
     best_lines: list[str] | None = None
     best_score = -1
-
     for candidate in segments:
         meaningful = [line for line in candidate if line.strip() and not is_placeholder_line(line)]
         score = len(meaningful)
         if score > best_score:
             best_score = score
             best_lines = candidate
-
     lines = [line.rstrip() for line in (best_lines or [])]
     lines = [line for line in lines if line.strip()]
     if not lines:
         return placeholder
-
     meaningful = [line for line in lines if not is_placeholder_line(line)]
     if meaningful:
         lines = meaningful
-
     return "\n".join(lines)
 
 
@@ -160,7 +237,273 @@ def validate_cross_headers(text: str, forbidden: list[str], label: str) -> None:
             raise ValueError(f"{label} contains forbidden section header: {header}")
 
 
-def build_child_skill(name: str, slug: str) -> str:
+def normalize_source_types(raw: str | None) -> list[str]:
+    if not raw:
+        return list(DEFAULT_SOURCE_TYPES)
+    normalized: list[str] = []
+    for item in raw.replace("，", ",").split(","):
+        token = item.strip().lower()
+        if not token:
+            continue
+        normalized_token = SOURCE_TYPE_SYNONYMS.get(token)
+        if normalized_token is None:
+            raise ValueError(f"Unsupported source type: {item.strip()}")
+        if normalized_token not in normalized:
+            normalized.append(normalized_token)
+    return normalized or list(DEFAULT_SOURCE_TYPES)
+
+
+def parse_bool_flag(value: str | None, default: bool = False) -> bool:
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "t", "yes", "y", "是"}:
+        return True
+    if normalized in {"0", "false", "f", "no", "n", "否"}:
+        return False
+    raise ValueError(f"Unsupported boolean value: {value}")
+
+
+def prompt_required(prompt: str, default: str | None = None) -> str:
+    shown_default = default if default else None
+    suffix = f" [{shown_default}]" if shown_default else ""
+    while True:
+        value = input(f"{prompt}{suffix}: ").strip()
+        if value:
+            return value
+        if shown_default is not None:
+            return shown_default
+        print("This field is required.")
+
+
+def prompt_yes_no(prompt: str, default: bool = False) -> bool:
+    default_label = "Y/n" if default else "y/N"
+    while True:
+        value = input(f"{prompt} [{default_label}]: ").strip()
+        if not value:
+            return default
+        try:
+            return parse_bool_flag(value)
+        except ValueError:
+            print("Please answer yes or no.")
+
+
+def prompt_multiline(prompt: str) -> str:
+    print(f"{prompt} Finish with a line containing only {INTERACTIVE_SENTINEL}.")
+    lines: list[str] = []
+    while True:
+        line = input()
+        if line.strip() == INTERACTIVE_SENTINEL:
+            break
+        lines.append(line.rstrip())
+    return "\n".join(lines).strip()
+
+
+def normalize_note_line(line: str) -> str:
+    stripped = line.strip()
+    if stripped.startswith("- "):
+        stripped = stripped[2:].strip()
+    return stripped
+
+
+def parse_prefixed_notes(
+    raw: str,
+    headers: list[str],
+    prefix_map: dict[str, str],
+    default_header: str,
+) -> dict[str, list[str]]:
+    bucket = {header: [] for header in headers}
+    for raw_line in raw.splitlines():
+        line = normalize_note_line(raw_line)
+        if not line:
+            continue
+        if ":" in line:
+            prefix, value = line.split(":", 1)
+            header = prefix_map.get(prefix.strip().lower())
+            if header:
+                cleaned = value.strip()
+                if cleaned:
+                    bucket[header].append(cleaned)
+                continue
+        bucket[default_header].append(line)
+    return bucket
+
+
+def render_markdown_from_sections(headers: list[str], sections: dict[str, list[str]]) -> str:
+    blocks = []
+    for header in headers:
+        lines = sections.get(header) or []
+        body = "\n".join(f"- {line}" for line in lines) if lines else SECTION_PLACEHOLDERS[header]
+        blocks.append(f"{header}\n\n{body}")
+    return "\n\n".join(blocks) + "\n"
+
+
+def merge_section_defaults(
+    sections: dict[str, list[str]],
+    defaults: dict[str, list[str]],
+) -> dict[str, list[str]]:
+    merged = {header: list(sections.get(header, [])) for header in defaults}
+    for header, lines in defaults.items():
+        if not merged[header]:
+            merged[header] = list(lines)
+    return merged
+
+
+def build_minimal_persona_defaults(target_use: str, allow_low_confidence: bool) -> dict[str, list[str]]:
+    if allow_low_confidence:
+        return {
+            "## Behavior Patterns": [
+                f"Based on limited intake material, keep the roleplay aligned with the user's stated goal: {target_use}."
+            ],
+            "## Emotional Tendencies": [
+                "When evidence is thin, express emotions conservatively instead of inventing strong unverified reactions."
+            ],
+            "## Interaction Style": [
+                "Prefer clear, supportive, character-facing replies and mark uncertain traits through restraint rather than new canon claims."
+            ],
+            "## Relationship Progression": [
+                "Let familiarity grow gradually from the ongoing conversation instead of assuming deep trust immediately."
+            ],
+            "## Boundaries And Preferences": [
+                "Do not present speculative traits as confirmed facts, even when low-confidence persona inference is allowed."
+            ],
+        }
+    return {
+        "## Behavior Patterns": [
+            "Insufficient persona evidence is currently available, so keep behavior restrained and avoid strong unverified traits."
+        ],
+        "## Emotional Tendencies": [
+            "Default to mild, controlled emotional expression until more source-backed characterization is added."
+        ],
+        "## Interaction Style": [
+            "Answer in a neutral, steady roleplay voice and avoid claiming inner motives that were not provided."
+        ],
+        "## Relationship Progression": [
+            "Do not force closeness or hostility without explicit support from later materials or user guidance."
+        ],
+        "## Boundaries And Preferences": [
+            "If a response depends on missing characterization, stay conservative rather than fabricating details."
+        ],
+    }
+
+
+def build_minimal_style_defaults(target_use: str) -> dict[str, list[str]]:
+    return {
+        "## Address Patterns": [
+            "Use direct address suitable for the current conversation and avoid overcommitting to honorific habits not yet supported."
+        ],
+        "## Rhythm And Sentence Shape": [
+            f"Keep sentence rhythm stable and readable for the stated use case: {target_use}."
+        ],
+        "## Verbal Tics": [
+            "Avoid adding signature catchphrases unless they were explicitly provided in the intake."
+        ],
+        "## Short Example Lines": [
+            "I am here, so tell me what you need.",
+        ],
+    }
+
+
+def build_minimal_canon_defaults() -> dict[str, list[str]]:
+    return {
+        "## Basic Identity": [],
+        "## Setting Attributes": [
+            "No additional confirmed setting attributes were supplied in the current intake bundle."
+        ],
+        "## Key Plot Events": [
+            "No explicit plot events were supplied in the current intake bundle."
+        ],
+        "## Confirmed Relationships": [
+            "No explicit relationships were supplied in the current intake bundle."
+        ],
+        "## Official Statements And Notes": [
+            "No official statements were supplied in the current intake bundle."
+        ],
+    }
+
+
+def build_canon_markdown(name: str, source_work: str, note_blocks: dict[str, list[str]]) -> str:
+    sections = {header: list(note_blocks.get(header, [])) for header in CANON_HEADERS}
+    sections = merge_section_defaults(sections, build_minimal_canon_defaults())
+    identity = sections["## Basic Identity"]
+    if name:
+        identity.insert(0, f"Name: {name}")
+    if source_work:
+        identity.append(f"Source Work: {source_work}")
+    return render_markdown_from_sections(CANON_HEADERS, sections)
+
+
+def build_persona_markdown(
+    note_blocks: dict[str, list[str]],
+    target_use: str,
+    allow_low_confidence: bool,
+) -> str:
+    sections = {header: list(note_blocks.get(header, [])) for header in PERSONA_HEADERS}
+    sections = merge_section_defaults(
+        sections,
+        build_minimal_persona_defaults(target_use, allow_low_confidence),
+    )
+    return render_markdown_from_sections(PERSONA_HEADERS, sections)
+
+
+def build_style_markdown(note_blocks: dict[str, list[str]], target_use: str) -> str:
+    sections = {header: list(note_blocks.get(header, [])) for header in STYLE_HEADERS}
+    sections = merge_section_defaults(sections, build_minimal_style_defaults(target_use))
+    return render_markdown_from_sections(STYLE_HEADERS, sections)
+
+
+def build_normalized_payload(
+    intake: dict,
+    raw_material_notes: str,
+    canon_notes: str,
+    persona_notes: str,
+    style_notes: str,
+    updated_at: str,
+) -> dict:
+    entries: list[dict] = []
+
+    def push_entry(kind: str, text: str, entry_id: str) -> None:
+        if text.strip():
+            entries.append(
+                {
+                    "entry_id": entry_id,
+                    "text": text.strip(),
+                    "kind": kind,
+                    "line_start": 1,
+                    "line_end": len(text.splitlines()),
+                }
+            )
+
+    push_entry("source_summary", raw_material_notes, "intake-001")
+    push_entry("canon_notes", canon_notes, "intake-002")
+    push_entry("persona_notes", persona_notes, "intake-003")
+    push_entry("style_notes", style_notes, "intake-004")
+
+    return {
+        "schema_version": "0.3",
+        "source": {
+            "source_type": "interactive-intake",
+            "input_path": "",
+            "normalized_at": updated_at,
+            "source_types": intake["source_types"],
+        },
+        "intake": {
+            "character_name": intake["character_name"],
+            "source_work": intake["source_work"],
+            "target_use": intake["target_use"],
+            "source_types": intake["source_types"],
+            "allow_low_confidence_persona": intake["allow_low_confidence_persona"],
+        },
+        "entries": entries,
+    }
+
+
+def build_child_skill(name: str, slug: str, target_use: str, allow_low_confidence: bool) -> str:
+    confidence_line = (
+        "Low-confidence persona inference is allowed when material is thin, but it must stay clearly subordinate to canon."
+        if allow_low_confidence
+        else "When persona evidence is thin, stay conservative and do not improvise strong characterization."
+    )
     return (
         f"---\n"
         f"name: {slug}\n"
@@ -168,6 +511,9 @@ def build_child_skill(name: str, slug: str) -> str:
         f"---\n\n"
         f"# {name}\n\n"
         f"Use this skill to roleplay or answer as {name}.\n\n"
+        f"## Intent\n\n"
+        f"- Preferred use: {target_use}\n"
+        f"- Runtime slug: `{slug}`\n\n"
         f"## Runtime Order\n\n"
         f"1. Read `canon.md` first for facts, setting, events, and relationships.\n"
         f"2. Read `persona.md` for behavior patterns, emotional tendencies, and interaction strategy.\n"
@@ -180,31 +526,8 @@ def build_child_skill(name: str, slug: str) -> str:
         f"- If facts and style conflict, facts from `canon.md` win.\n"
         f"- If the behavior feels off, improve `persona.md` before changing canon.\n"
         f"- If the voice feels weak, improve `style_examples.md` before changing canon.\n"
+        f"- {confidence_line}\n"
     )
-
-
-def write_json(path: Path, payload: dict) -> None:
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-
-
-def relative_path(base_root: Path, path: Path | None) -> str | None:
-    if path is None:
-        return None
-    return path.relative_to(base_root).as_posix()
-
-
-def load_existing_meta(paths: list[Path]) -> dict:
-    for path in paths:
-        if path.exists():
-            return json.loads(path.read_text(encoding="utf-8"))
-    return {}
-
-
-def load_existing_text(paths: list[Path]) -> str | None:
-    for path in paths:
-        if path.exists():
-            return path.read_text(encoding="utf-8")
-    return None
 
 
 def package_targets(
@@ -221,9 +544,8 @@ def package_targets(
     primary_dir = primary_root / slug
     archive_dir = None
     default_archive_dir = (root / DEFAULT_ARCHIVE_ROOT) / slug
-    if install_scope == "both":
-        if primary_dir != default_archive_dir:
-            archive_dir = default_archive_dir
+    if install_scope == "both" and primary_dir != default_archive_dir:
+        archive_dir = default_archive_dir
     return primary_dir, archive_dir
 
 
@@ -248,9 +570,7 @@ def write_package(
     (package_dir / "style_examples.md").write_text(style_text, encoding="utf-8")
     (package_dir / "SKILL.md").write_text(skill_text, encoding="utf-8")
     write_json(package_dir / "meta.json", meta)
-    normalized_path = package_dir / "sources" / "normalized.json"
-    if not normalized_path.exists():
-        write_json(normalized_path, normalized_payload)
+    write_json(package_dir / "sources" / "normalized.json", normalized_payload)
 
 
 def lint_package(package_dir: Path) -> dict:
@@ -266,7 +586,6 @@ def list_packages(root: Path, scope: str) -> list[dict]:
         search_roots.append(("codex", root / DEFAULT_INSTALL_ROOT))
     if scope in {"archive", "both"}:
         search_roots.append(("archive", root / DEFAULT_ARCHIVE_ROOT))
-
     indexed: dict[str, dict] = {}
     for location, search_root in search_roots:
         if not search_root.exists():
@@ -280,6 +599,88 @@ def list_packages(root: Path, scope: str) -> list[dict]:
             record.setdefault("locations", [])
             record["locations"].append(location)
     return list(indexed.values())
+
+
+def interactive_intake(existing: dict) -> tuple[str, str, str, list[str], bool, str, str, str, str]:
+    print("Interactive intake mode for character skill generation.")
+    character_name = prompt_required("Character name", existing.get("character_name") or None)
+    source_work = prompt_required("Source work", existing.get("source_work") or None)
+    target_use = prompt_required("Target use", existing.get("target_use") or "roleplay conversation")
+    source_type_default = ",".join(existing.get("source_types", DEFAULT_SOURCE_TYPES))
+    source_types = normalize_source_types(
+        prompt_required(
+            "Source material types (official, plot, quotes, wiki, user; comma separated)",
+            source_type_default,
+        )
+    )
+    allow_low_confidence = prompt_yes_no(
+        "Allow low-confidence persona inference when materials are limited",
+        existing.get("allow_low_confidence_persona", False),
+    )
+    raw_material_notes = prompt_multiline(
+        "Paste a short raw-material summary or any notes you already have."
+    )
+    canon_notes = prompt_multiline(
+        "Enter canon notes with optional prefixes identity:/attribute:/event:/relation:/official:"
+    )
+    persona_notes = prompt_multiline(
+        "Enter persona notes with optional prefixes behavior:/emotion:/interaction:/progression:/boundary:"
+    )
+    style_notes = prompt_multiline(
+        "Enter style notes with optional prefixes address:/rhythm:/tic:/example:"
+    )
+    return (
+        character_name,
+        source_work,
+        target_use,
+        source_types,
+        allow_low_confidence,
+        raw_material_notes,
+        canon_notes,
+        persona_notes,
+        style_notes,
+    )
+
+
+def build_interactive_outputs(existing: dict, forced_slug: str | None) -> tuple[str, str, str, dict, str, dict]:
+    (
+        character_name,
+        source_work,
+        target_use,
+        source_types,
+        allow_low_confidence,
+        raw_material_notes,
+        canon_notes,
+        persona_notes,
+        style_notes,
+    ) = interactive_intake(existing)
+
+    updated_at = utc_now()
+    canon_blocks = parse_prefixed_notes(canon_notes, CANON_HEADERS, CANON_PREFIXES, "## Basic Identity")
+    persona_blocks = parse_prefixed_notes(persona_notes, PERSONA_HEADERS, PERSONA_PREFIXES, "## Behavior Patterns")
+    style_blocks = parse_prefixed_notes(style_notes, STYLE_HEADERS, STYLE_PREFIXES, "## Address Patterns")
+    canon_text = build_canon_markdown(character_name, source_work, canon_blocks)
+    persona_text = build_persona_markdown(persona_blocks, target_use, allow_low_confidence)
+    style_text = build_style_markdown(style_blocks, target_use)
+    effective_slug = forced_slug or slugify(character_name)
+    intake = {
+        "slug": effective_slug,
+        "character_name": character_name,
+        "source_work": source_work,
+        "target_use": target_use,
+        "source_types": source_types,
+        "allow_low_confidence_persona": allow_low_confidence,
+    }
+    normalized_payload = build_normalized_payload(
+        intake,
+        raw_material_notes,
+        canon_notes,
+        persona_notes,
+        style_notes,
+        updated_at,
+    )
+    skill_text = build_child_skill(character_name, effective_slug, target_use, allow_low_confidence)
+    return canon_text, persona_text, style_text, normalized_payload, skill_text, intake
 
 
 def main() -> None:
@@ -300,8 +701,12 @@ def main() -> None:
         type=parse_scope,
         help="Which package roots to inspect when using --action list.",
     )
+    parser.add_argument("--interactive", action="store_true", help="Run an intake-first interactive session for create or update.")
     parser.add_argument("--name", help="Character display name.")
     parser.add_argument("--source-work", default="", help="Source work name.")
+    parser.add_argument("--target-use", default="", help="Target roleplay use or scenario.")
+    parser.add_argument("--source-types", help="Comma-separated source types: official, plot, quotes, wiki, user.")
+    parser.add_argument("--allow-low-confidence-persona", help="Whether low-confidence persona inference is allowed: yes/no.")
     parser.add_argument("--canon-file", help="Optional canon markdown path.")
     parser.add_argument("--persona-file", help="Optional persona markdown path.")
     parser.add_argument("--style-file", help="Optional style markdown path.")
@@ -316,46 +721,84 @@ def main() -> None:
         print(json.dumps(list_packages(root, args.list_scope), ensure_ascii=False, indent=2))
         return
 
-    if not args.slug:
-        raise SystemExit("--slug is required for create and update")
+    effective_slug = args.slug or (slugify(args.name) if args.name else None)
+    if not effective_slug and not args.interactive:
+        raise SystemExit("--slug is required for create and update unless --interactive is used")
 
-    primary_dir, archive_dir = package_targets(root, args.slug, args.install_scope, args.output_root)
+    placeholder_slug = effective_slug or "interactive-intake"
+    primary_dir, archive_dir = package_targets(root, placeholder_slug, args.install_scope, args.output_root)
     meta_candidates = [primary_dir / "meta.json"]
     if archive_dir is not None:
         meta_candidates.append(archive_dir / "meta.json")
     existing = load_existing_meta(meta_candidates)
 
-    canon_existing = load_existing_text([primary_dir / "canon.md"] + ([archive_dir / "canon.md"] if archive_dir else []))
-    persona_existing = load_existing_text([primary_dir / "persona.md"] + ([archive_dir / "persona.md"] if archive_dir else []))
-    style_existing = load_existing_text([primary_dir / "style_examples.md"] + ([archive_dir / "style_examples.md"] if archive_dir else []))
+    if args.interactive:
+        canon_text, persona_text, style_text, normalized_payload, skill_text, intake = build_interactive_outputs(existing, args.slug)
+        name = intake["character_name"]
+        effective_slug = intake["slug"]
+        source_work = intake["source_work"]
+        target_use = intake["target_use"]
+        source_types = intake["source_types"]
+        allow_low_confidence = intake["allow_low_confidence_persona"]
+        primary_dir, archive_dir = package_targets(root, effective_slug, args.install_scope, args.output_root)
+    else:
+        canon_existing = load_existing_text([primary_dir / "canon.md"] + ([archive_dir / "canon.md"] if archive_dir else []))
+        persona_existing = load_existing_text([primary_dir / "persona.md"] + ([archive_dir / "persona.md"] if archive_dir else []))
+        style_existing = load_existing_text([primary_dir / "style_examples.md"] + ([archive_dir / "style_examples.md"] if archive_dir else []))
+        canon_text = ensure_sections(read_text(args.canon_file) or canon_existing, CANON_HEADERS)
+        persona_text = ensure_sections(read_text(args.persona_file) or persona_existing, PERSONA_HEADERS)
+        style_text = ensure_sections(read_text(args.style_file) or style_existing, STYLE_HEADERS)
+        name = args.name or existing.get("character_name") or effective_slug or "character"
+        source_work = args.source_work or existing.get("source_work", "")
+        target_use = args.target_use or existing.get("target_use", "roleplay conversation")
+        source_types = normalize_source_types(args.source_types or ",".join(existing.get("source_types", DEFAULT_SOURCE_TYPES)))
+        allow_low_confidence = parse_bool_flag(
+            args.allow_low_confidence_persona,
+            existing.get("allow_low_confidence_persona", False),
+        )
+        normalized_payload = {
+            "schema_version": "0.3",
+            "source": {
+                "source_type": "manual",
+                "input_path": "",
+                "normalized_at": utc_now(),
+                "source_types": source_types,
+            },
+            "intake": {
+                "slug": effective_slug,
+                "character_name": name,
+                "source_work": source_work,
+                "target_use": target_use,
+                "source_types": source_types,
+                "allow_low_confidence_persona": allow_low_confidence,
+            },
+            "entries": [],
+        }
+        skill_text = build_child_skill(name, effective_slug or "character", target_use, allow_low_confidence)
 
-    canon_text = ensure_sections(read_text(args.canon_file) or canon_existing, CANON_HEADERS)
-    persona_text = ensure_sections(read_text(args.persona_file) or persona_existing, PERSONA_HEADERS)
-    style_text = ensure_sections(read_text(args.style_file) or style_existing, STYLE_HEADERS)
+    validate_cross_headers(canon_text, PERSONA_HEADERS + STYLE_HEADERS, "canon")
+    validate_cross_headers(persona_text, CANON_HEADERS + STYLE_HEADERS, "persona")
+    validate_cross_headers(style_text, CANON_HEADERS + PERSONA_HEADERS, "style_examples")
 
-    validate_cross_headers(canon_text, PERSONA_HEADERS, "canon")
-    validate_cross_headers(persona_text, CANON_HEADERS, "persona")
-
-    name = args.name or existing.get("character_name") or args.slug
     created_at = existing.get("created_at", utc_now())
     updated_at = utc_now()
     meta = {
-        "slug": args.slug,
+        "slug": effective_slug,
         "character_name": name,
-        "source_work": args.source_work or existing.get("source_work", ""),
-        "layout_version": "0.2",
+        "source_work": source_work,
+        "target_use": target_use,
+        "source_types": source_types,
+        "allow_low_confidence_persona": allow_low_confidence,
+        "layout_version": "0.3",
         "created_at": created_at,
         "updated_at": updated_at,
         "primary_path": relative_path(root, primary_dir),
         "archive_path": relative_path(root, archive_dir),
         "install_scope": args.install_scope,
     }
-    normalized_payload = {
-        "schema_version": "0.1",
-        "source": {"source_type": "manual", "input_path": "", "normalized_at": updated_at},
-        "entries": [],
-    }
-    skill_text = build_child_skill(name, args.slug)
+    normalized_payload["source"]["normalized_at"] = updated_at
+    normalized_payload["intake"]["slug"] = effective_slug
+    normalized_payload["intake"]["character_name"] = name
 
     write_package(primary_dir, canon_text, persona_text, style_text, skill_text, meta, normalized_payload)
     if archive_dir is not None:

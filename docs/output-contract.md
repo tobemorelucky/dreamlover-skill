@@ -18,6 +18,13 @@ Each package contains:
 - `sources/normalized.json`: normalized source bundle or merge result
 - `versions/`: character-level snapshots
 
+Interactive creation should persist the intake answers into:
+
+- `meta.json`
+- `sources/normalized.json`
+- the generated `canon.md`, `persona.md`, `style_examples.md`
+- the child `SKILL.md`
+
 Generated packages should also satisfy these lint expectations:
 
 - no missing required files
@@ -62,6 +69,9 @@ Generated packages should also satisfy these lint expectations:
 - `slug`
 - `character_name`
 - `source_work`
+- `target_use`
+- `source_types`
+- `allow_low_confidence_persona`
 - `layout_version`
 - `created_at`
 - `updated_at`

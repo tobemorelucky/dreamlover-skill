@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.3
+
+- added intake-first generation rules to the top-level skill and intake prompt
+- added `tools/skill_writer.py --interactive` for CLI question-driven creation
+- persisted interactive intake answers into `meta.json`, `sources/normalized.json`, and generated layer files
+- updated contracts and README examples to show `/skills` plus `$slug` after generation
+
 ## v0.2
 
 - switched generated child skills to Codex-installable output under `./.agents/skills/{slug}/`

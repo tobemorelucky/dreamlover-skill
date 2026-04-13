@@ -17,6 +17,16 @@ Each import should include:
 - a text file
 - enough context to know which character the material belongs to
 
+For intake-first generation, the minimum user-provided request bundle should include:
+
+- character name
+- source work
+- target use
+- available source material types
+- whether low-confidence persona inference is allowed when evidence is thin
+
+If these fields are incomplete, the generator should ask follow-up intake questions before creating the child skill.
+
 ## Normalized Shape
 
 The normalizer outputs JSON with this structure:
