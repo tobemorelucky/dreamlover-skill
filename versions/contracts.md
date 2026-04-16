@@ -37,9 +37,11 @@
 
 - generated child skills are installed to `./.agents/skills/{slug}/` by default
 - `characters/{slug}/` is an archive mirror when `skill_writer.py` runs with the default `both` scope
-- Codex discovery should happen from the installed skill directory, not from the archive mirror
+- OpenClaw discovery should happen from the installed skill directory, not from the archive mirror
 - `skill_writer.py` runs a post-write lint pass by default and returns lint results alongside package metadata
 - `skill_writer.py --interactive` performs intake-first prompting and writes the intake bundle into `meta.json` and `sources/normalized.json`
 - the hard intake gate must complete and be confirmed before any character files are written
 - child skills use conditional memory gates instead of reading or writing memory every turn
 - local runtime memory lives under `./.dreamlover-data/` and must not be written into `SKILL.md`
+- generated child `SKILL.md` files use OpenClaw-compatible front matter and declare `python3` when memory scripts are available
+- when `python3` is unavailable, child skills fall back to no-memory mode rather than failing completely

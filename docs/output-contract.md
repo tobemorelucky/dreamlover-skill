@@ -4,7 +4,7 @@
 
 Each generated character package is installed under `./.agents/skills/{slug}/`.
 
-This is the primary runtime location that Codex should discover through `/skills` and direct invocation with `$slug`.
+This is the primary runtime location that OpenClaw should discover from the workspace skill directory.
 
 If archive mirroring is enabled, the same package is also written to `characters/{slug}/` as a repository-local archive copy.
 
@@ -34,6 +34,7 @@ Generated packages should also satisfy these lint expectations:
 - no duplicate required section headers
 - no cross-layer section headers mixed into the wrong file
 - child `SKILL.md` contains YAML front matter with `name` and `description`
+- child `SKILL.md` contains OpenClaw-compatible metadata for Python-backed memory scripts
 - published packages should not keep raw `TODO` placeholders
 
 ## Canon Sections
@@ -99,5 +100,7 @@ The child `SKILL.md` must tell the runtime:
 - never invent prior chat history when no relevant memory exists
 - never upgrade persona inference into canon during conversation
 - include YAML front matter with `name` and `description`
-- make `description` explicit that the skill is for roleplay or answering in the character's voice
+- include OpenClaw-compatible front matter for Python requirements, including `metadata.openclaw.requires.bins: ["python3"]`
+- make `description` explicit that the skill is for OpenClaw roleplay or answering in the character's voice
 - be directly discoverable from `./.agents/skills/{slug}/`
+- degrade to no-memory mode when `python3` is unavailable instead of failing the whole skill

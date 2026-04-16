@@ -181,12 +181,20 @@ def lint_skill_markdown(path: Path, expected_slug: str | None, messages: list[di
     description = front_matter.get("description", "").lower()
     if description and "roleplay" not in description and "voice" not in description:
         add_message(messages, path, "warning", "Description should mention roleplay or character voice.")
+    metadata_blob = front_matter.get("metadata", "")
+    metadata_bins = front_matter.get("metadata.openclaw.requires.bins", "")
+    if "openclaw" not in metadata_blob.lower() and "python3" not in metadata_bins.lower():
+        add_message(messages, path, "warning", "Child skill should declare OpenClaw python3 requirements in front matter.")
+    if "openclaw" not in description:
+        add_message(messages, path, "warning", "Description should mention OpenClaw compatibility.")
     if "memory_router.py" not in text:
         add_message(messages, path, "warning", "Child skill should mention memory_router.py for conditional memory gating.")
     if "memory_fetch.py" not in text or "memory_commit.py" not in text:
         add_message(messages, path, "warning", "Child skill should mention memory_fetch.py and memory_commit.py.")
     if ".dreamlover-data" not in text:
         add_message(messages, path, "warning", "Child skill should point dynamic memory storage to .dreamlover-data.")
+    if "python3" not in text or "no-memory mode" not in text:
+        add_message(messages, path, "warning", "Child skill should describe python3 dependency and no-memory fallback.")
 
     for pattern in PLACEHOLDER_PATTERNS:
         if pattern.search(text):

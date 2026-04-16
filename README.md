@@ -283,6 +283,38 @@ dreamlover-skill/
 
 ---
 
+## OpenClaw Runtime Notes
+
+The top-level `dreamlover-skill` is the generator.
+
+The generated child character skill is the OpenClaw runtime skill:
+
+- install it at `<workspace>/.agents/skills/{slug}/`
+- start a new OpenClaw session or refresh skills
+- let OpenClaw discover the child skill from the workspace
+- use normal conversation to trigger the character roleplay
+
+Child skills keep conditional memory:
+
+1. read `canon.md`
+2. read `persona.md`
+3. read `style_examples.md`
+4. run `memory_router.py` before the reply
+5. only fetch memory when `should_read: true`
+6. generate the reply
+7. run `memory_router.py` again after the reply
+8. only commit memory when `should_write: true`
+9. only summarize memory when `should_summarize: true`
+
+Local memory path:
+
+- `<workspace>/.dreamlover-data/memory.sqlite3`
+
+Python note:
+
+- generated child skills declare `python3` for memory scripts
+- if `python3` is unavailable, they should fall back to no-memory mode instead of failing completely
+
 ## License
 
 MIT

@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6
+
+- updated generated child skills to use OpenClaw-oriented front matter and runtime wording
+- added OpenClaw Python requirement metadata for child skills that use conditional memory scripts
+- kept conditional memory routing while adding explicit no-memory fallback when `python3` is unavailable
+- updated README and contracts to distinguish the generator skill from OpenClaw-loadable child skills
+
 ## v0.5
 
 - added conditional local memory scripts: `memory_router`, `memory_fetch`, `memory_commit`, and `memory_summarize`

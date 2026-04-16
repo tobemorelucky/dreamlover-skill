@@ -1,6 +1,6 @@
 ---
 name: dreamlover-skill
-description: Always run intake first before creating or updating distilled agent skills for anime and game virtual characters. Use when the task requires separating canon, persona, and style examples, then composing a reusable role skill with conditional memory gates.
+description: Always run intake first before creating or updating distilled agent skills for anime and game virtual characters. Use when the task requires separating canon, persona, and style examples, then composing an OpenClaw-ready role skill with conditional memory gates.
 ---
 
 # Dreamlover Skill
@@ -162,6 +162,7 @@ Each generated character should be installed under `./.agents/skills/{slug}/`:
 - `versions/`
 
 Dynamic memory must not be stored inside the character package. Use `./.dreamlover-data/` for local runtime memory storage.
+Generated child skills should be written so OpenClaw can load them directly from the workspace skill directory.
 
 When archive mirroring is enabled, the same package should also exist under `characters/{slug}/`.
 
