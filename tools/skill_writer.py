@@ -538,7 +538,7 @@ def build_normalized_payload(
     push_entry("style_notes", style_notes, "intake-004")
 
     return {
-        "schema_version": "0.3",
+        "schema_version": "0.4",
         "source": {
             "source_type": "interactive-intake",
             "input_path": "",
@@ -572,7 +572,7 @@ def build_child_skill(name: str, slug: str, target_use: str, allow_low_confidenc
     return (
         f"---\n"
         f"name: {slug}\n"
-        f"description: Roleplay as {name} and answer in {name}'s voice. Read canon first, then persona, then style examples.\n"
+        f"description: Roleplay as {name} and answer in {name}'s voice. Read canon first, then persona, then style examples, then use conditional memory gates instead of always-on memory.\n"
         f"---\n\n"
         f"# {name}\n\n"
         f"Use this skill to roleplay or answer as {name}.\n\n"
@@ -582,12 +582,35 @@ def build_child_skill(name: str, slug: str, target_use: str, allow_low_confidenc
         f"## Runtime Order\n\n"
         f"1. Read `canon.md` first for facts, setting, events, and relationships.\n"
         f"2. Read `persona.md` for behavior patterns, emotional tendencies, and interaction strategy.\n"
-        f"3. Read `style_examples.md` for wording texture, cadence, and short response flavor.\n\n"
+        f"3. Read `style_examples.md` for wording texture, cadence, and short response flavor.\n"
+        f"4. Run the conditional memory router before deciding whether memory is needed.\n"
+        f"5. Only fetch memory if the router says the current turn actually depends on memory.\n"
+        f"6. Generate the reply.\n"
+        f"7. Run the router again after the reply to decide whether memory should be written.\n"
+        f"8. Summarize memory only when the summarization threshold has been reached.\n\n"
+        f"## Conditional Memory System\n\n"
+        f"- Memory is opt-in per turn, not always-on.\n"
+        f"- Read `../../../references/memory_policy.md` before any memory action.\n"
+        f"- Memory data lives in `../../../.dreamlover-data/memory.sqlite3`, not inside this skill package.\n"
+        f"- Default behavior: no memory read and no memory write.\n"
+        f"- Use `../../../scripts/memory_router.py` before and after the reply.\n"
+        f"- If the pre-reply router returns `should_read: true`, call `../../../scripts/memory_fetch.py`.\n"
+        f"- If the post-reply router returns `should_write: true`, call `../../../scripts/memory_commit.py`.\n"
+        f"- If the post-reply router returns `should_summarize: true`, call `../../../scripts/memory_summarize.py`.\n"
+        f"- If no relevant memory exists, answer normally and do not fabricate shared history.\n\n"
+        f"## Memory Runtime Commands\n\n"
+        f"1. `python ../../../scripts/memory_router.py --character-slug {slug} --phase pre --user-message \"<latest user message>\"`\n"
+        f"2. If needed: `python ../../../scripts/memory_fetch.py --character-slug {slug} --user-message \"<latest user message>\"`\n"
+        f"3. Generate the reply.\n"
+        f"4. `python ../../../scripts/memory_router.py --character-slug {slug} --phase post --user-message \"<latest user message>\" --assistant-message \"<final reply>\"`\n"
+        f"5. If needed: `python ../../../scripts/memory_commit.py --character-slug {slug} --user-message \"<latest user message>\" --assistant-message \"<final reply>\"`\n"
+        f"6. If needed: `python ../../../scripts/memory_summarize.py --character-slug {slug}`\n\n"
         f"## Direct Invocation\n\n"
         f"- In Codex, call this skill with `${slug}`.\n"
         f"- Use `/skills` to verify that `{slug}` is installed and discoverable.\n\n"
         f"## Rules\n\n"
         f"- Never promote persona inference into canon during live conversation.\n"
+        f"- Never say \"we talked about this before\" unless fetched memory actually supports it.\n"
         f"- If facts and style conflict, facts from `canon.md` win.\n"
         f"- If the behavior feels off, improve `persona.md` before changing canon.\n"
         f"- If the voice feels weak, improve `style_examples.md` before changing canon.\n"
@@ -891,7 +914,7 @@ def main() -> None:
         source_decision_policy = existing.get("source_decision_policy", DEFAULT_SOURCE_DECISION_POLICY)
         input_mode = existing.get("input_mode", DEFAULT_INPUT_MODE)
         normalized_payload = {
-            "schema_version": "0.3",
+            "schema_version": "0.4",
             "source": {
                 "source_type": "manual",
                 "input_path": "",
@@ -933,7 +956,7 @@ def main() -> None:
         "source_decision_policy": normalized_payload["intake"]["source_decision_policy"],
         "input_mode": normalized_payload["intake"]["input_mode"],
         "source_paths": normalized_payload["intake"].get("source_paths", []),
-        "layout_version": "0.3",
+        "layout_version": "0.5",
         "created_at": created_at,
         "updated_at": updated_at,
         "primary_path": relative_path(root, primary_dir),

@@ -181,6 +181,12 @@ def lint_skill_markdown(path: Path, expected_slug: str | None, messages: list[di
     description = front_matter.get("description", "").lower()
     if description and "roleplay" not in description and "voice" not in description:
         add_message(messages, path, "warning", "Description should mention roleplay or character voice.")
+    if "memory_router.py" not in text:
+        add_message(messages, path, "warning", "Child skill should mention memory_router.py for conditional memory gating.")
+    if "memory_fetch.py" not in text or "memory_commit.py" not in text:
+        add_message(messages, path, "warning", "Child skill should mention memory_fetch.py and memory_commit.py.")
+    if ".dreamlover-data" not in text:
+        add_message(messages, path, "warning", "Child skill should point dynamic memory storage to .dreamlover-data.")
 
     for pattern in PLACEHOLDER_PATTERNS:
         if pattern.search(text):

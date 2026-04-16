@@ -178,6 +178,28 @@ $rem
 
 这样就能直接按角色口吻开始对话。
 
+### 6. Conditional Memory System
+
+Generated child skills now use a conditional memory flow instead of always-on memory.
+
+- default: do not read memory
+- default: do not write memory
+- run `memory_router.py` before the reply
+- fetch memory only when the router says read is needed
+- commit memory only when the router says write is needed
+- summarize memory only when the threshold is reached
+- local memory lives in `./.dreamlover-data/`
+
+Minimal local verification:
+
+```bash
+python scripts/memory_router.py --character-slug rem --phase pre --user-message "今天天气不错"
+python scripts/memory_router.py --character-slug rem --phase pre --user-message "你还记得我上次说过什么吗"
+python scripts/memory_router.py --character-slug rem --phase post --user-message "我以后都喜欢你叫我阿昭"
+python scripts/memory_commit.py --character-slug rem --user-message "我以后都喜欢你叫我阿昭"
+python scripts/memory_fetch.py --character-slug rem --user-message "你还记得我喜欢你怎么叫我吗"
+```
+
 ---
 
 ## 效果示例

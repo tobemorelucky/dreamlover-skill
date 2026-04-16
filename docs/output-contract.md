@@ -18,6 +18,9 @@ Each package contains:
 - `sources/normalized.json`: normalized source bundle or merge result
 - `versions/`: character-level snapshots
 
+Dynamic memory is out-of-band and must not be written into the package files.
+Local runtime memory should live under `./.dreamlover-data/`.
+
 Interactive creation should persist the intake answers into:
 
 - `meta.json`
@@ -89,6 +92,11 @@ The child `SKILL.md` must tell the runtime:
 - read `canon.md` first for facts
 - use `persona.md` for behavior and interaction strategy
 - use `style_examples.md` for wording texture
+- route each turn through `scripts/memory_router.py`
+- call `scripts/memory_fetch.py` only when the router says memory read is needed
+- call `scripts/memory_commit.py` only when the router says memory write is needed
+- call `scripts/memory_summarize.py` only when the summarization threshold is reached
+- never invent prior chat history when no relevant memory exists
 - never upgrade persona inference into canon during conversation
 - include YAML front matter with `name` and `description`
 - make `description` explicit that the skill is for roleplay or answering in the character's voice

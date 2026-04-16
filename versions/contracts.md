@@ -6,6 +6,8 @@
 - `AGENTS.md`
 - `.agents/skills/`
 - `docs/`
+- `references/`
+- `scripts/`
 - `prompts/`
 - `tools/`
 - `versions/`
@@ -20,6 +22,10 @@
 - `python tools/skill_writer.py --action create|update|list [--slug <slug>] --root <path> [--interactive] [--output-root <path>] [--install-scope codex|archive|both] [--target-use <text>] [--source-types <csv>] [--allow-low-confidence-persona yes|no] [--skip-lint]`
 - `python tools/version_manager.py --action snapshot|rollback --slug <slug> --root <path> [--output-root <path>] [--scope codex|archive|both]`
 - `python tools/skill_linter.py --slug <slug> --root <path> [--output-root <path>] [--scope codex|archive|both]`
+- `python scripts/memory_router.py --character-slug <slug> --user-message <text> [--assistant-message <text>] [--phase pre|post] [--user-id <id>]`
+- `python scripts/memory_fetch.py --character-slug <slug> --user-message <text> [--user-id <id>]`
+- `python scripts/memory_commit.py --character-slug <slug> --user-message <text> [--assistant-message <text>] [--user-id <id>]`
+- `python scripts/memory_summarize.py --character-slug <slug> [--user-id <id>] [--summary-threshold <n>]`
 
 ## Layer Contracts
 
@@ -35,3 +41,5 @@
 - `skill_writer.py` runs a post-write lint pass by default and returns lint results alongside package metadata
 - `skill_writer.py --interactive` performs intake-first prompting and writes the intake bundle into `meta.json` and `sources/normalized.json`
 - the hard intake gate must complete and be confirmed before any character files are written
+- child skills use conditional memory gates instead of reading or writing memory every turn
+- local runtime memory lives under `./.dreamlover-data/` and must not be written into `SKILL.md`

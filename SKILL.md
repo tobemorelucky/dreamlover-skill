@@ -1,6 +1,6 @@
 ---
 name: dreamlover-skill
-description: Always run intake first before creating or updating distilled agent skills for anime and game virtual characters. Use when the task requires separating canon, persona, and style examples, then composing a reusable role skill.
+description: Always run intake first before creating or updating distilled agent skills for anime and game virtual characters. Use when the task requires separating canon, persona, and style examples, then composing a reusable role skill with conditional memory gates.
 ---
 
 # Dreamlover Skill
@@ -60,6 +60,7 @@ Follow this order:
 8. Install the child skill under `./.agents/skills/{slug}/`.
 9. Mirror it to `characters/{slug}/` when archive output is enabled.
 10. Snapshot the installed skill into its `versions/` directory.
+11. Keep dynamic memory outside the package and route it through the local memory scripts only when needed.
 
 Do not skip the ordering. `persona` may depend on `canon`, but `canon` must not depend on `persona`.
 
@@ -115,6 +116,7 @@ Read these files only when needed:
 - `docs/input-contract.md` for accepted source formats and intake minimums
 - `docs/output-contract.md` for child skill layout
 - `docs/safety.md` for content and copyright boundaries
+- `references/memory_policy.md` for conditional memory rules
 
 Use these prompts during execution:
 
@@ -137,6 +139,13 @@ Use these tools when deterministic output helps:
 - `tools/skill_linter.py`
 - `tools/version_manager.py`
 
+Use these runtime memory scripts when composing or validating child skill behavior:
+
+- `scripts/memory_router.py`
+- `scripts/memory_fetch.py`
+- `scripts/memory_commit.py`
+- `scripts/memory_summarize.py`
+
 Prefer `tools/skill_writer.py --interactive` when intake information is missing or incomplete.
 In interactive mode, do not allow any writes before the intake summary is confirmed.
 
@@ -151,6 +160,8 @@ Each generated character should be installed under `./.agents/skills/{slug}/`:
 - `meta.json`
 - `sources/normalized.json`
 - `versions/`
+
+Dynamic memory must not be stored inside the character package. Use `./.dreamlover-data/` for local runtime memory storage.
 
 When archive mirroring is enabled, the same package should also exist under `characters/{slug}/`.
 
@@ -167,3 +178,5 @@ Before finishing:
 - make sure the child skill is discoverable from `./.agents/skills/{slug}/`
 - make sure the installed package passes `tools/skill_linter.py` without errors
 - make sure a snapshot exists after creation or major updates
+- make sure the child skill only reads or writes memory when the router says it should
+- make sure the child skill never fabricates prior conversation history

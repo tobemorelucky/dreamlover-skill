@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.5
+
+- added conditional local memory scripts: `memory_router`, `memory_fetch`, `memory_commit`, and `memory_summarize`
+- introduced local SQLite memory storage under `./.dreamlover-data/`
+- updated generated child `SKILL.md` files to use memory gates instead of always-on memory
+- added `references/memory_policy.md` to define what can be remembered and when memory calls are allowed
+
 ## v0.4
 
 - upgraded intake from a soft recommendation to a hard no-write gate

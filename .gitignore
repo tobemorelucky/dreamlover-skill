@@ -2,9 +2,12 @@
 *.pyc
 
 .tmp*/
+.tmp-*
 .temp*/
+.dreamlover-data/
 
-.agents/skills/*/
-!/.agents/skills/demo-hero/
+.agents/skills/**
+!.agents/skills/
+!.agents/skills/.gitkeep
 
 characters/*/
