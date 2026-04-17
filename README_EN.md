@@ -48,7 +48,6 @@ The child `SKILL.md` is written with OpenClaw-oriented front matter:
 name: rem
 description: OpenClaw-compatible role skill for Rem. Answer in Rem's voice using canon, persona, style examples, and conditional memory gates.
 metadata: {"openclaw": {"requires": {"bins": ["python3"]}}}
-metadata.openclaw.requires.bins: ["python3"]
 ---
 ```
 

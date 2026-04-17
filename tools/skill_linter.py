@@ -183,8 +183,7 @@ def lint_skill_markdown(path: Path, expected_slug: str | None, messages: list[di
     if description and "roleplay" not in description and "voice" not in description:
         add_message(messages, path, "warning", "Description should mention roleplay or character voice.")
     metadata_blob = front_matter.get("metadata", "")
-    metadata_bins = front_matter.get("metadata.openclaw.requires.bins", "")
-    if "openclaw" not in metadata_blob.lower() and "python3" not in metadata_bins.lower():
+    if "openclaw" not in metadata_blob.lower() or "python3" not in metadata_blob.lower():
         add_message(messages, path, "warning", "Child skill should declare OpenClaw python3 requirements in front matter.")
     if "openclaw" not in description:
         add_message(messages, path, "warning", "Description should mention OpenClaw compatibility.")

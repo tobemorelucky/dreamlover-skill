@@ -101,7 +101,7 @@ The child `SKILL.md` must tell the runtime:
 - never invent prior chat history when no relevant memory exists
 - never upgrade persona inference into canon during conversation
 - include YAML front matter with `name` and `description`
-- include OpenClaw-compatible front matter for Python requirements, including `metadata.openclaw.requires.bins: ["python3"]`
+- include OpenClaw-compatible front matter for Python requirements, for example `metadata: {openclaw: {requires: {bins: [python3]}}}`
 - make `description` explicit that the skill is for OpenClaw roleplay or answering in the character's voice
 - be directly discoverable from `./.agents/skills/{slug}/`
 - degrade to no-memory mode when `python3` is unavailable instead of failing the whole skill
