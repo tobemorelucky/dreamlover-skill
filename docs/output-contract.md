@@ -2,21 +2,32 @@
 
 ## Character Package Layout
 
-Each generated character package is installed under `./.agents/skills/{slug}/`.
+Each generated character now has one canonical static source under `characters/{slug}/`.
 
-This is the primary runtime location that OpenClaw should discover from the workspace skill directory.
+The canonical source contains:
 
-If archive mirroring is enabled, the same package is also written to `characters/{slug}/` as a repository-local archive copy.
-
-Each package contains:
-
-- `SKILL.md`: child skill entrypoint
 - `canon.md`: factual layer
 - `persona.md`: behavioral layer
 - `style_examples.md`: wording layer
 - `meta.json`: character metadata
 - `sources/normalized.json`: normalized source bundle or merge result
 - `versions/`: character-level snapshots
+
+Codex is the primary installed runtime target and is written to `./.agents/skills/{slug}/`.
+
+OpenClaw is an optional export target and is only written when the user explicitly chooses an OpenClaw workspace.
+That export goes to `<openclaw_workspace>/.agents/skills/{slug}/`.
+
+Each runtime package contains:
+
+- `SKILL.md`: platform-specific wrapper
+- `canon.md`
+- `persona.md`
+- `style_examples.md`
+- `meta.json`
+- `sources/normalized.json`
+- `versions/`
+- `runtime/`: copied local memory scripts needed by the wrapper
 
 Dynamic memory is out-of-band and must not be written into the package files.
 Local runtime memory should live under `./.dreamlover-data/`.
@@ -26,7 +37,7 @@ Interactive creation should persist the intake answers into:
 - `meta.json`
 - `sources/normalized.json`
 - the generated `canon.md`, `persona.md`, `style_examples.md`
-- the child `SKILL.md`
+- the child wrapper `SKILL.md`
 
 Generated packages should also satisfy these lint expectations:
 
@@ -87,23 +98,30 @@ Generated packages should also satisfy these lint expectations:
 - `primary_path`
 - `archive_path`
 - `install_scope`
+- `canonical_source`
+- `export_targets`
+- `generated_for`
+- `openclaw_exported_at`
 
 ## Child Skill Rule
 
-The child `SKILL.md` must tell the runtime:
+The platform wrapper `SKILL.md` must tell the runtime:
 
 - read `canon.md` first for facts
 - use `persona.md` for behavior and interaction strategy
 - use `style_examples.md` for wording texture
-- only call `scripts/memory_prepare.py` when the latest turn suggests memory may matter
+- only call `runtime/memory_prepare.py` when the latest turn suggests memory may matter
 - use returned `memory_context` only when `memory_prepare.py` says read is needed
-- call `scripts/memory_commit.py` only when `memory_prepare.py` says memory write is needed
-- call `scripts/memory_summarize.py` only when the summarization threshold is reached
+- call `runtime/memory_commit.py` only when `memory_prepare.py` says memory write is needed
+- call `runtime/memory_summarize.py` only when the summarization threshold is reached
 - never invent prior chat history when no relevant memory exists
 - never upgrade persona inference into canon during conversation
 - include YAML front matter with `name` and `description`
 - include OpenClaw-compatible front matter for Python requirements, for example `metadata: {openclaw: {requires: {bins: [python3]}}}`
-- make `description` explicit that the skill is for OpenClaw roleplay or answering in the character's voice
-- be directly discoverable from `./.agents/skills/{slug}/`
+- make `description` explicit that the skill is for Codex or OpenClaw roleplay / answering in the character's voice
+- keep `canon.md`, `persona.md`, `style_examples.md`, and `meta.json` identical across exported runtime packages
+- only let platform differences live in `SKILL.md` and copied runtime scripts
+- be directly discoverable from `./.agents/skills/{slug}/` for Codex, and from `<openclaw_workspace>/.agents/skills/{slug}/` for OpenClaw exports
 - degrade to no-memory mode when `python3` is unavailable instead of failing the whole skill
 - never expose internal memory checks to the user unless a real failure affects the reply
+- not copy `.dreamlover-data/` or any other runtime memory database into the exported package

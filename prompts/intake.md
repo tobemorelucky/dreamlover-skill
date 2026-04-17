@@ -58,6 +58,7 @@ When target use is not provided, default it to `openclaw roleplay conversation`.
 Do not include a `minimal confirmation template` shortcut block.
 Generate the draft in memory first, then repeat key personality and important factors back to the user for confirmation before any files are written.
 The very first intake reply should contain only the source completion policy question and its options.
+After the draft is confirmed, install the Codex package first and then ask whether the user also wants an OpenClaw export.
 
 If the user only provides a name, or has not answered the unresolved required slots for the chosen branch, the intake is not complete yet.
 

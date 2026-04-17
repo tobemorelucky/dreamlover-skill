@@ -4,14 +4,16 @@ Use this prompt after all three layers exist.
 
 ## Goal
 
-Compose the child `SKILL.md` for the installed runtime package at `./.agents/skills/{slug}/`.
+Compose platform wrapper `SKILL.md` files for runtime packages derived from one canonical static source.
 
 ## The Child Skill Must Say
 
 - read `canon.md` first for facts
 - use `persona.md` for behavior and interaction strategy
 - use `style_examples.md` for wording texture
-- use OpenClaw-compatible front matter with `name`, `description`, and Python requirement metadata
+- use front matter with `name`, `description`, and Python requirement metadata
+- produce a Codex wrapper for `./.agents/skills/{slug}/`
+- produce an OpenClaw wrapper only when the user explicitly asks for export
 - use `memory_prepare.py` as the single conditional memory entrypoint when memory may matter
 - commit memory only when `memory_prepare.py` says write is needed
 - summarize memory only at the configured threshold
@@ -26,4 +28,5 @@ Compose the child `SKILL.md` for the installed runtime package at `./.agents/ski
 - reference the layer files as the source of truth
 - keep the runtime order explicit: canon, then persona, then style, then silent conditional memory preparation
 - point dynamic memory to `./.dreamlover-data/` instead of the skill package
-- write the child skill as an OpenClaw-ready runtime instruction, not a Codex-only invocation note
+- keep `canon.md`, `persona.md`, `style_examples.md`, and `meta.json` shared across Codex and OpenClaw exports
+- let the wrapper language differ by platform instead of forcing one universal `SKILL.md`

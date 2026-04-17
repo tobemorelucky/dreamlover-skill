@@ -1,6 +1,6 @@
 ---
 name: dreamlover-skill
-description: Always run intake first before creating or updating distilled agent skills for anime and game virtual characters. Use when the task requires separating canon, persona, and style examples, then composing an OpenClaw-ready role skill with conditional memory gates.
+description: Always run intake first before creating or updating distilled agent skills for anime and game virtual characters. Use when the task requires separating canon, persona, and style examples, writing one canonical source, installing a Codex wrapper, and optionally exporting an OpenClaw wrapper.
 ---
 
 # Dreamlover Skill
@@ -87,11 +87,12 @@ Follow this order:
 4. Build `canon` first.
 5. Build `persona` from source materials plus the confirmed `canon`.
 6. Extract `style_examples`.
-7. Compose the child `SKILL.md`.
-8. Install the child skill under `./.agents/skills/{slug}/`.
-9. Mirror it to `characters/{slug}/` when archive output is enabled.
-10. Snapshot the installed skill into its `versions/` directory.
-11. Keep dynamic memory outside the package and route it through the local memory scripts only when needed.
+7. Write one canonical static source under `characters/{slug}/`.
+8. Compose a Codex wrapper `SKILL.md`.
+9. Install the Codex runtime package under `./.agents/skills/{slug}/`.
+10. Ask whether to export an OpenClaw runtime package.
+11. If requested, ask for the OpenClaw workspace path and export a platform-specific wrapper there.
+12. Keep dynamic memory outside the package and route it through the local memory scripts only when needed.
 
 Do not skip the ordering. `persona` may depend on `canon`, but `canon` must not depend on `persona`.
 
@@ -183,9 +184,8 @@ In interactive mode, do not allow any writes before the intake summary is confir
 
 ## Output Layout
 
-Each generated character should be installed under `./.agents/skills/{slug}/`:
+Each generated character should first have one canonical static source under `characters/{slug}/`:
 
-- `SKILL.md`
 - `canon.md`
 - `persona.md`
 - `style_examples.md`
@@ -193,10 +193,14 @@ Each generated character should be installed under `./.agents/skills/{slug}/`:
 - `sources/normalized.json`
 - `versions/`
 
-Dynamic memory must not be stored inside the character package. Use `./.dreamlover-data/` for local runtime memory storage.
-Generated child skills should be written so OpenClaw can load them directly from the workspace skill directory.
+Then install a Codex runtime package under `./.agents/skills/{slug}/` with a Codex-oriented `SKILL.md`.
 
-When archive mirroring is enabled, the same package should also exist under `characters/{slug}/`.
+If the user explicitly asks for OpenClaw export, also write `<openclaw_workspace>/.agents/skills/{slug}/` with an OpenClaw-oriented `SKILL.md`.
+
+Static content must stay identical across Codex and OpenClaw runtime packages.
+Dynamic memory must not be stored inside the character package. Use `./.dreamlover-data/` for local runtime memory storage.
+
+Do not maintain two editable sources for the same character. Re-export from the canonical static source instead.
 
 ## Quality Bar
 
@@ -208,9 +212,11 @@ Before finishing:
 - make sure `persona` contains only summarized behavior
 - make sure `style_examples` only handles language texture
 - make sure corrections modify the right layer
-- make sure the child skill is discoverable from `./.agents/skills/{slug}/`
+- make sure the Codex child skill is discoverable from `./.agents/skills/{slug}/`
+- make sure OpenClaw export is optional and only happens after the user confirms it
 - make sure the installed package passes `tools/skill_linter.py` without errors
 - make sure a snapshot exists after creation or major updates
 - make sure the child skill only reads or writes memory when silent conditional routing says it should
 - make sure the child skill never fabricates prior conversation history
 - make sure the child skill never exposes internal memory flow to the user unless a real failure affects the answer
+- make sure no runtime memory database is copied into exported skill directories

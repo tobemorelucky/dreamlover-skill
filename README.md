@@ -1,319 +1,191 @@
 # dreamlover-skill
 
-> *"搞出来大模型的简直是码神，使用 AI 编码创造了雷电将军，还要创造玛奇玛，创造喜多川海梦，创造薇尔莉特，创造蕾姆，创造霞之丘诗羽，创造中野二乃，创造樱岛麻衣，最后创造一个只有老婆的完美世界。"*
->
-> 把动漫 / 游戏虚拟角色的原材料蒸馏成一个真正能长期使用、并且能直接被 Codex 调用的 Agent Skill。
->
-> [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-> [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
-> [![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
-> [![Agent Skill](https://img.shields.io/badge/Agent-Skill-green)](https://github.com/tobemorelucky/dreamlover-skill)
->
-> 仓库地址：[tobemorelucky/dreamlover-skill](https://github.com/tobemorelucky/dreamlover-skill)
->
-> [安装](#安装) · [使用](#使用) · [效果示例](#效果示例) · [项目结构](#项目结构) · [注意事项](#注意事项) · [English](README_EN.md)
+> “搞出来大模型的简直是码神，使用 AI 编码解放了前端兄弟，还要解放后端兄弟，测试兄弟，运维兄弟，解放网安兄弟，解放 ic 兄弟，最后解放自己解放全人类（本 skill 几乎完全由 Codex 生成）”
 
----
+把动漫 / 游戏虚拟角色资料蒸馏成一套共享静态角色内容，然后自动生成适配 Codex 的主安装包，并按需导出 OpenClaw 版本。
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
+[![Agent Skill](https://img.shields.io/badge/Agent-Skill-green)](https://github.com/tobemorelucky/dreamlover-skill)
+
+仓库地址：[tobemorelucky/dreamlover-skill](https://github.com/tobemorelucky/dreamlover-skill)
+
+[English](README_EN.md)
 
 ## 这是什么
 
-`dreamlover-skill` 是一个“生成器 skill”。
+`dreamlover-skill` 是顶层生成器 skill，不是最终拿来聊天的角色本体。
 
-它负责把角色资料整理成三层：
+它会先生成唯一的 canonical source：
+
+- `canon.md`
+- `persona.md`
+- `style_examples.md`
+- `meta.json`
+
+这套静态角色内容保存在：
+
+- `characters/{slug}/`
+
+然后基于同一套静态内容生成平台包装层：
+
+- Codex 主安装：`./.agents/skills/{slug}/`
+- OpenClaw 可选导出：`<openclaw_workspace>/.agents/skills/{slug}/`
+
+静态角色内容在两个平台之间保持一致，差异只体现在：
+
+- `SKILL.md`
+- 必要的 `runtime/` 脚本打包方式
+
+## 当前主流程
+
+默认以 Codex 为主安装目标：
+
+1. 先生成 canonical source 到 `characters/{slug}/`
+2. 默认安装 Codex 版本到 `./.agents/skills/{slug}/`
+3. 生成完成后再问是否导出 OpenClaw
+4. 如果用户确认导出，再询问 OpenClaw workspace 路径
+5. 导出到 `<openclaw_workspace>/.agents/skills/{slug}/`
+
+不建议把 Codex 安装目录和 OpenClaw 导出目录当成两个可编辑源。角色有变更时，应回到 canonical source 重新导出覆盖。
+
+## 三层拆分
 
 - `canon.md`：只保留事实、设定、明确事件、关系
 - `persona.md`：只保留行为模式、互动策略、边界
 - `style_examples.md`：只保留表达风格和短句样例
 
-生成完成后，会把角色安装成一个可直接被 Codex 发现和调用的“子 skill”：
+## 条件触发式记忆
 
-- 主输出目录：`./.agents/skills/{slug}/`
-- 归档镜像：`characters/{slug}/`
-- 显式调用：`$slug`
-- 检查是否被发现：`/skills`
+生成出的子角色 skill 保留条件触发式记忆，但运行时记忆不是角色静态内容的一部分。
 
----
+- 运行时数据库路径：`<workspace>/.dreamlover-data/memory.sqlite3`
+- 不会把 `.dreamlover-data/` 复制进 skill 目录
+- 普通闲聊默认不读也不写记忆
+- 只有命中条件时才调用 `runtime/memory_prepare.py`
+- 只有需要写入时才调用 `runtime/memory_commit.py`
+- 只有达到阈值时才调用 `runtime/memory_summarize.py`
 
-## 安装
-
-### Claude Code
-
-```bash
-git clone https://github.com/tobemorelucky/dreamlover-skill ~/.claude/skills/dreamlover-skill
-```
-
-### Codex
-
-```bash
-git clone https://github.com/tobemorelucky/dreamlover-skill $CODEX_HOME/skills/dreamlover-skill
-```
-
-### 环境要求
-
-- Python 3.9+
-- 支持 Skill 目录加载的 Agent 环境
-- 第一版只处理文本资料
-
----
+如果 `python3` 不可用，子 skill 会自动退化为无记忆模式，而不是整个角色失效。
 
 ## 使用
 
-### 1. Hard Intake Gate
-
-当你只说：
+### 用顶层生成器创建角色
 
 ```text
 $dreamlover-skill
 帮我创建雷姆这个角色 skill
 ```
 
-生成器不应该直接乱写，而应该先进入 hard intake gate，至少先问你：
+预期行为：
 
-- 这个角色是否允许使用可搜索到的公开资料补全？
-- 来源策略：
-  - 仅用用户提供的信息
-  - 仅用官方资料+wiki资料
-  - 官方资料+用户资料
-- 直接提供的信息方式：
-  - 直接输送信息
-  - 文件路径
+1. 先进入 intake gate
+2. 生成草稿摘要并让用户确认
+3. 先写 canonical source
+4. 默认安装 Codex 版本
+5. 再询问是否导出 OpenClaw
 
-然后再继续问：
-
-- 角色名
-- 作品名
-- 目标用途
-- 资料类型：官方设定 / 剧情摘要 / 台词摘录 / wiki / 用户描述
-- 是否允许基于不足资料做低置信度 persona 归纳
-
-只有在所有问题回答完、并且生成器复述关键信息得到确认之后，才继续生成。
-在此之前，不允许创建或修改任何角色文件。
-
-### 2. 生成角色 skill
-
-推荐流程：
-
-1. 使用 `$dreamlover-skill`
-2. 回答 intake 提问
-3. 做 source audit
-4. 先写 `canon`
-5. 再写 `persona`
-6. 最后写 `style_examples`
-7. 组合成角色子 `SKILL.md`
-8. 安装到 `./.agents/skills/{slug}/`
-9. 如有需要，同时镜像到 `characters/{slug}/`
-10. 生成版本快照
-
-### 3. 使用工具辅助
+### CLI 生成
 
 ```bash
-python tools/slugify.py "雷电将军"
-python tools/source_normalizer.py --input sample.txt --type wiki --output normalized.json
-python tools/evidence_indexer.py --input normalized.json --output indexed.json
-python tools/style_extractor.py --input sample.txt --output style.json
 python tools/skill_writer.py --action create --interactive
-python tools/skill_writer.py --action create --slug raiden-shogun --name "Raiden Shogun"
-python tools/skill_linter.py --slug raiden-shogun --scope codex
-python tools/version_manager.py --action snapshot --slug raiden-shogun --scope codex
+python tools/skill_writer.py --action create --slug rem --name "Rem"
+python tools/skill_writer.py --action create --slug rem --name "Rem" --openclaw-workspace /path/to/openclaw-workspace
 ```
 
-`skill_writer.py --interactive` 会逐项提问，并且在确认前不会写任何文件。确认之后会把 intake 信息写入：
+## Codex 使用方式
 
-- `canon.md`
-- `persona.md`
-- `style_examples.md`
-- `sources/normalized.json`
-- 子 `SKILL.md`
-
-### 4. 在 Codex 中直接调用
-
-生成完成后：
-
-1. 在 Codex 中执行 `/skills`
-2. 确认看到了对应 slug
-3. 直接输入 `$slug` 开始对话
-
-例如：
+生成后，Codex 主安装目录应为：
 
 ```text
-/skills
-$raiden-shogun
-$rem
+./.agents/skills/rem/
 ```
 
-### 5. 最小端到端示例
-
-```text
-$dreamlover-skill
-帮我创建雷姆这个角色 skill
-```
-
-接下来预期应该先被问到：
-
-```text
-1. 这个角色是否允许使用可搜索到的公开资料补全？
-2. 请选择直接提供的文件信息或者文件路径
-```
-
-然后再继续补全角色名、作品名、目标用途等信息，并在生成前收到一段关键信息确认。
-
-例如：
-
-```text
-来源策略：官方资料+用户资料
-输入方式：直接输送信息
-角色名：雷姆
-作品名：Re:从零开始的异世界生活
-目标用途：日常角色对话
-资料类型：wiki,用户描述
-允许低置信度 persona：是
-```
-
-生成后：
+然后在 Codex 中验证：
 
 ```text
 /skills
 $rem
 ```
 
-这样就能直接按角色口吻开始对话。
+## OpenClaw 使用方式
 
-### 6. Conditional Memory System
+如果用户选择导出，OpenClaw 目录应为：
 
-Generated child skills now use a conditional memory flow instead of always-on memory.
+```text
+<openclaw_workspace>/.agents/skills/rem/
+```
 
-- default: do not read memory
-- default: do not write memory
-- run `memory_router.py` before the reply
-- fetch memory only when the router says read is needed
-- commit memory only when the router says write is needed
-- summarize memory only when the threshold is reached
-- local memory lives in `./.dreamlover-data/`
+然后在 OpenClaw 中：
 
-Minimal local verification:
+- 刷新 skills 或新建会话
+- 让 OpenClaw 从 workspace 自动发现该角色 skill
+- 通过普通对话触发角色扮演
+
+OpenClaw 版本共享同一套静态角色内容，但使用独立的 OpenClaw wrapper `SKILL.md`。
+
+## 路径与导出说明
+
+为避免路径问题，导出的 OpenClaw 版本不会依赖硬编码的 home 目录。
+
+当前设计是：
+
+- 角色静态文件直接放在 `<openclaw_workspace>/.agents/skills/{slug}/`
+- 运行脚本放在 `<openclaw_workspace>/.agents/skills/{slug}/runtime/`
+- wrapper 使用相对路径调用本地 `runtime/` 脚本
+- wrapper 使用相对路径把记忆数据写到 `<workspace>/.dreamlover-data/`
+
+因此：
+
+- 不需要把仓库根目录复制到 OpenClaw workspace
+- 不会因为用户机器的 home 路径不同而失效
+- 不会把运行时记忆数据库错误地打进 skill 包
+
+## 本地验证
+
+### 验证 Codex 主安装
 
 ```bash
-python scripts/memory_router.py --character-slug rem --phase pre --user-message "今天天气不错"
-python scripts/memory_router.py --character-slug rem --phase pre --user-message "你还记得我上次说过什么吗"
-python scripts/memory_router.py --character-slug rem --phase post --user-message "我以后都喜欢你叫我阿昭"
-python scripts/memory_commit.py --character-slug rem --user-message "我以后都喜欢你叫我阿昭"
-python scripts/memory_fetch.py --character-slug rem --user-message "你还记得我喜欢你怎么叫我吗"
+python tools/skill_writer.py --action create --interactive
 ```
 
----
+预期：
 
-## 效果示例
+- `characters/{slug}/` 生成 canonical source
+- `./.agents/skills/{slug}/` 生成 Codex 包装层
 
-仓库内置了一个最小 demo：
+### 验证 OpenClaw 导出
 
-- `characters/demo-hero/`
-- `./.agents/skills/demo-hero/`
-
-生成后的角色 skill 至少包含：
-
-- `SKILL.md`
-- `canon.md`
-- `persona.md`
-- `style_examples.md`
-- `meta.json`
-- `sources/normalized.json`
-- `versions/`
-
-最小端到端流程就是：
-
-1. 生成角色
-2. 在 `/skills` 里看到它
-3. 使用 `$slug` 开始对话
-
----
-
-## 功能特性
-
-### 当前能力
-
-- 文本资料归一化
-- 来源可信度分层
-- `canon / persona / style_examples` 严格拆分
-- intake-first 生成流程
-- CLI 交互式创建：`python tools/skill_writer.py --action create --interactive`
-- 角色安装到 `./.agents/skills/{slug}/`
-- 归档镜像到 `characters/{slug}/`
-- 版本快照与回滚基础设施
-
-### 当前不包含
-
-- 图片解析
-- 音频解析
-- 视频解析
-- 自动联网抓取资料
-- 高级语义审查器
-
----
-
-## 项目结构
-
-```text
-dreamlover-skill/
-├── SKILL.md
-├── README.md
-├── README_EN.md
-├── AGENTS.md
-├── .agents/
-│   └── skills/
-│       └── {slug}/
-├── docs/
-├── prompts/
-├── tools/
-├── characters/
-│   └── {slug}/
-└── versions/
+```bash
+python tools/skill_writer.py --action create --slug rem --name "Rem" --openclaw-workspace /tmp/openclaw-demo
 ```
 
----
+预期：
+
+- `/tmp/openclaw-demo/.agents/skills/rem/` 存在
+- `canon.md` / `persona.md` / `style_examples.md` / `meta.json` 与 Codex 版本一致
+- 只有 `SKILL.md` 和 `runtime/` 属于平台差异层
+
+### 验证记忆门控
+
+```bash
+python scripts/memory_prepare.py --character-slug rem --user-message "今天天气不错"
+python scripts/memory_prepare.py --character-slug rem --user-message "你还记得我上次说过什么吗"
+python scripts/memory_prepare.py --character-slug rem --user-message "以后叫我阿昭"
+```
+
+预期：
+
+- 普通闲聊：不读、不写
+- 明确追问历史：触发读取
+- 稳定称呼偏好：回复后触发写入
 
 ## 注意事项
 
-- 资料质量决定还原度
-- `canon` 只允许直接支持的内容，不能写推断
-- `persona` 只允许行为归纳，不能新增设定
-- `style_examples` 只负责表达质感，不负责制造 lore
-- Codex 实际发现的是 `./.agents/skills/{slug}/`，不是 `characters/{slug}/`
-- 如果 `/skills` 没刷新，重启或刷新 Codex 后再检查
-- 这个项目的目标是蒸馏角色，不是复制原文数据库
-
----
-
-## OpenClaw Runtime Notes
-
-The top-level `dreamlover-skill` is the generator.
-
-The generated child character skill is the OpenClaw runtime skill:
-
-- install it at `<workspace>/.agents/skills/{slug}/`
-- start a new OpenClaw session or refresh skills
-- let OpenClaw discover the child skill from the workspace
-- use normal conversation to trigger the character roleplay
-
-Child skills keep conditional memory:
-
-1. read `canon.md`
-2. read `persona.md`
-3. read `style_examples.md`
-4. run `memory_router.py` before the reply
-5. only fetch memory when `should_read: true`
-6. generate the reply
-7. run `memory_router.py` again after the reply
-8. only commit memory when `should_write: true`
-9. only summarize memory when `should_summarize: true`
-
-Local memory path:
-
-- `<workspace>/.dreamlover-data/memory.sqlite3`
-
-Python note:
-
-- generated child skills declare `python3` for memory scripts
-- if `python3` is unavailable, they should fall back to no-memory mode instead of failing completely
+- canonical source 才是唯一建议编辑的角色源
+- 不建议手改导出的 Codex / OpenClaw 目录
+- 角色有变更时，请重新生成或重新导出
+- 当前版本仍以文本资料为主，不处理图片、音频、视频
 
 ## License
 

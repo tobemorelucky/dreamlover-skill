@@ -53,6 +53,10 @@ META_FIELDS = [
     "primary_path",
     "archive_path",
     "install_scope",
+    "canonical_source",
+    "export_targets",
+    "generated_for",
+    "openclaw_exported_at",
 ]
 SECTION_RULES = {
     "canon.md": {

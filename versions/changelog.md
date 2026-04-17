@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.7
+
+- changed generation output to one canonical static source under `characters/{slug}/`
+- made Codex the default runtime install target under `./.agents/skills/{slug}/`
+- added optional OpenClaw export to `<openclaw_workspace>/.agents/skills/{slug}/`
+- kept static role files shared across Codex and OpenClaw while allowing platform-specific `SKILL.md` wrappers
+- copied only runtime scripts into exported packages and kept `.dreamlover-data/` out of skill directories
+- added export metadata fields such as `canonical_source`, `export_targets`, `generated_for`, and `openclaw_exported_at`
+
 ## v0.6
 
 - updated generated child skills to use OpenClaw-oriented front matter and runtime wording

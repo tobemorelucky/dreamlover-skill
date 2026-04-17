@@ -19,7 +19,7 @@
 - `python tools/source_normalizer.py --input <path> --type manual|wiki|quotes|plot --output <path>`
 - `python tools/evidence_indexer.py --input <normalized.json> --output <indexed.json>`
 - `python tools/style_extractor.py --input <path> --output <style.json>`
-- `python tools/skill_writer.py --action create|update|list [--slug <slug>] --root <path> [--interactive] [--output-root <path>] [--install-scope codex|archive|both] [--target-use <text>] [--source-types <csv>] [--allow-low-confidence-persona yes|no] [--skip-lint]`
+- `python tools/skill_writer.py --action create|update|list [--slug <slug>] --root <path> [--interactive] [--output-root <path>] [--install-scope codex|archive|both] [--openclaw-workspace <path>] [--target-use <text>] [--source-types <csv>] [--allow-low-confidence-persona yes|no] [--skip-lint]`
 - `python tools/version_manager.py --action snapshot|rollback --slug <slug> --root <path> [--output-root <path>] [--scope codex|archive|both]`
 - `python tools/skill_linter.py --slug <slug> --root <path> [--output-root <path>] [--scope codex|archive|both]`
 - `python scripts/memory_prepare.py --character-slug <slug> --user-message <text> [--user-id <id>]`
@@ -36,11 +36,13 @@
 
 ## Runtime Contract
 
-- generated child skills are installed to `./.agents/skills/{slug}/` by default
-- `characters/{slug}/` is an archive mirror when `skill_writer.py` runs with the default `both` scope
-- OpenClaw discovery should happen from the installed skill directory, not from the archive mirror
+- `characters/{slug}/` is the canonical static source for each generated character
+- generated Codex child skills are installed to `./.agents/skills/{slug}/` by default
+- OpenClaw export is optional and goes to `<openclaw_workspace>/.agents/skills/{slug}/` only when explicitly requested
+- both runtime packages share the same static character files and differ only in the wrapper layer and runtime packaging
 - `skill_writer.py` runs a post-write lint pass by default and returns lint results alongside package metadata
 - `skill_writer.py --interactive` performs intake-first prompting and writes the intake bundle into `meta.json` and `sources/normalized.json`
+- after interactive generation, the tool asks whether to export to an OpenClaw workspace
 - the hard intake gate must complete and be confirmed before any character files are written
 - the hard intake gate asks one unresolved question at a time instead of sending the entire checklist at once
 - the intake state tracks canonical slots and must not re-ask slots that are already clearly resolved
@@ -50,3 +52,4 @@
 - generated child `SKILL.md` files use OpenClaw-compatible front matter and declare `python3` when memory scripts are available
 - when `python3` is unavailable, child skills fall back to no-memory mode rather than failing completely
 - child skills must not expose internal memory checks to the user during normal conversation
+- runtime exports must not copy `.dreamlover-data/` into skill directories

@@ -77,76 +77,81 @@ CANONICAL_SLOTS = [
 SOURCE_POLICY_ALIASES = {
     "1": "user_only",
     "只用我给的信息": "user_only",
-    "只用我提供的信息": "user_only",
-    "仅用我给的信息": "user_only",
+    "只用用户提供的信息": "user_only",
     "仅用用户信息": "user_only",
+    "仅用我提供的信息": "user_only",
     "user_only": "user_only",
     "2": "official_wiki_only",
     "官方资料+wiki资料": "official_wiki_only",
     "官方资料+wiki": "official_wiki_only",
+    "官方+wikis资料": "official_wiki_only",
     "官方+wiki": "official_wiki_only",
     "official_wiki_only": "official_wiki_only",
     "3": "official_plus_user",
-    "官方资料+我给的信息": "official_plus_user",
     "官方资料+用户资料": "official_plus_user",
     "官方+用户": "official_plus_user",
+    "官方资料+我提供的信息": "official_plus_user",
     "official_plus_user": "official_plus_user",
     "4": "official_quick",
     "快速生成": "official_quick",
+    "快速": "official_quick",
     "快生成": "official_quick",
-    "直接生成": "official_quick",
     "official_quick": "official_quick",
 }
 INPUT_MODE_ALIASES = {
     "1": "direct_text",
+    "直接输送信息": "direct_text",
+    "直接输入信息": "direct_text",
     "我直接贴文本": "direct_text",
-    "直接贴文本": "direct_text",
     "聊天里贴文本": "direct_text",
-    "聊天里发": "direct_text",
-    "直接输入": "direct_text",
+    "直接贴文本": "direct_text",
     "chat": "direct_text",
     "direct_text": "direct_text",
     "2": "file_path",
     "文件路径": "file_path",
     "路径": "file_path",
     "给你文件路径": "file_path",
-    "发文件路径": "file_path",
+    "读取文件路径": "file_path",
     "file_path": "file_path",
 }
 SEARCH_SCOPE_ALIASES = {
     "1": "small",
     "小": "small",
+    "小范围": "small",
     "small": "small",
     "2": "medium",
     "中": "medium",
+    "中范围": "medium",
     "medium": "medium",
     "3": "large",
     "大": "large",
+    "大范围": "large",
     "large": "large",
 }
 SOURCE_TYPE_SYNONYMS = {
     "official": "official",
     "official-setting": "official",
     "official_profile": "official",
-    "瀹樻柟": "official",
-    "瀹樻柟璁惧畾": "official",
+    "官方": "official",
+    "官方资料": "official",
     "plot": "plot",
     "plot-summary": "plot",
     "story": "plot",
-    "鍓ф儏": "plot",
-    "鍓ф儏鎽樿": "plot",
+    "剧情": "plot",
+    "剧情摘要": "plot",
     "quotes": "quotes",
     "quote": "quotes",
     "dialogue": "quotes",
-    "鍙拌瘝": "quotes",
-    "鍙拌瘝鎽樺綍": "quotes",
+    "台词": "quotes",
+    "台词摘录": "quotes",
     "wiki": "wiki",
-    "鐧剧": "wiki",
+    "维基": "wiki",
+    "wiki资料": "wiki",
     "user": "user",
     "manual": "user",
     "user-description": "user",
-    "鐢ㄦ埛": "user",
-    "鐢ㄦ埛鎻忚堪": "user",
+    "用户": "user",
+    "用户描述": "user",
 }
 SECTION_PLACEHOLDERS = {
     "## Basic Identity": "- No confirmed identity facts recorded yet.",
@@ -195,6 +200,14 @@ STYLE_PREFIXES = {
     "line": "## Short Example Lines",
 }
 INTERACTIVE_SENTINEL = "END"
+RUNTIME_SCRIPT_NAMES = [
+    "memory_prepare.py",
+    "memory_fetch.py",
+    "memory_commit.py",
+    "memory_summarize.py",
+    "memory_logic.py",
+    "memory_store.py",
+]
 
 
 def utc_now() -> str:
@@ -350,9 +363,31 @@ def parse_bool_flag(value: str | None, default: bool = False) -> bool:
     if value is None:
         return default
     normalized = value.strip().lower()
-    if normalized in {"1", "true", "t", "yes", "y", "允许", "允许推断", "允许补充", "可以", "可以补充"}:
+    if normalized in {
+        "1",
+        "true",
+        "t",
+        "yes",
+        "y",
+        "允许",
+        "允许推断",
+        "允许补充",
+        "可以",
+        "可以补充",
+    }:
         return True
-    if normalized in {"0", "false", "f", "no", "n", "不允许", "不允许推断", "不要补充", "不可以"}:
+    if normalized in {
+        "0",
+        "false",
+        "f",
+        "no",
+        "n",
+        "不允许",
+        "不允许推断",
+        "不要补充",
+        "不可以",
+        "否",
+    }:
         return False
     raise ValueError(f"Unsupported boolean value: {value}")
 
@@ -675,36 +710,56 @@ def build_normalized_payload(
     }
 
 
-def build_child_skill(name: str, slug: str, target_use: str, allow_low_confidence: bool) -> str:
+def build_child_skill(platform: str, name: str, slug: str, target_use: str, allow_low_confidence: bool) -> str:
     confidence_line = (
         "Low-confidence persona inference is allowed when material is thin, but it must stay clearly subordinate to canon."
         if allow_low_confidence
         else "When persona evidence is thin, stay conservative and do not improvise strong characterization."
     )
+    if platform == "codex":
+        description = (
+            f"Codex primary role skill for {name}. Answer directly in {name}'s voice using canon, persona, style examples, "
+            "and silent conditional memory. This wrapper can also be re-exported to OpenClaw."
+        )
+        platform_intro = (
+            "- Primary runtime: Codex workspace skill installation.\n"
+            f"- Expected path: `./.agents/skills/{slug}/`\n"
+            f"- Explicit invocation is optional: `${slug}`.\n"
+            "- `/skills` should discover this package from the current workspace.\n"
+        )
+    else:
+        description = (
+            f"OpenClaw-compatible role skill for {name}. Answer directly in {name}'s voice using canon, persona, style examples, "
+            "and silent conditional memory."
+        )
+        platform_intro = (
+            "- Runtime target: OpenClaw workspace skill installation.\n"
+            f"- Expected path: `<openclaw_workspace>/.agents/skills/{slug}/`\n"
+            "- OpenClaw should discover this package after refresh or a new session.\n"
+            "- Use normal conversation after discovery; no special wrapper explanation should be shown to the user.\n"
+        )
     return (
         f"---\n"
         f"name: {slug}\n"
-        f"description: OpenClaw-compatible role skill for {name}. Answer directly in {name}'s voice using canon, persona, style examples, and silent conditional memory.\n"
+        f"description: {description}\n"
         f"metadata: {{openclaw: {{requires: {{bins: [python3]}}}}}}\n"
         f"---\n\n"
         f"# {name}\n\n"
-        f"Use this skill to roleplay or answer as {name} inside OpenClaw or other AgentSkills-compatible runtimes.\n\n"
-        f"## Intent\n\n"
-        f"- Preferred use: {target_use}\n"
-        f"- Runtime slug: `{slug}`\n\n"
+        f"Use this skill to roleplay or answer as {name}.\n\n"
+        f"## Platform Wrapper\n\n"
+        f"{platform_intro}\n"
         f"## Silent Runtime Order\n\n"
         f"1. Read `canon.md` first for facts, setting, events, and relationships.\n"
         f"2. Read `persona.md` for behavior patterns, emotional tendencies, and interaction strategy.\n"
         f"3. Read `style_examples.md` for wording texture, cadence, and short response flavor.\n"
-        f"4. Only when the latest user turn suggests past context, long-term preference, nickname, or relationship state may matter, silently call `python3 ../../../scripts/memory_prepare.py --character-slug {slug} --user-message \"<latest user message>\"`.\n"
-        f"5. If `memory_prepare.py` returns `should_read: true`, use the returned `memory_context`. Do not make a separate fetch call in normal operation.\n"
+        f"4. Only when the latest user turn suggests past context, long-term preference, nickname, or relationship state may matter, silently call `python3 runtime/memory_prepare.py --character-slug {slug} --user-message \"<latest user message>\" --data-root ../../../.dreamlover-data`.\n"
+        f"5. If `memory_prepare.py` returns `should_read: true`, use the returned `memory_context`.\n"
         f"6. Reply directly in character. Do not mention memory gates, routers, scripts, or checks.\n"
-        f"7. If `memory_prepare.py` returns `should_write_after_reply: true`, silently call `python3 ../../../scripts/memory_commit.py --character-slug {slug} --user-message \"<latest user message>\" --assistant-message \"<final reply>\"` after the reply.\n"
-        f"8. If `memory_prepare.py` returns `should_summarize_after_reply: true`, silently call `python3 ../../../scripts/memory_summarize.py --character-slug {slug}` after the reply.\n\n"
+        f"7. If `memory_prepare.py` returns `should_write_after_reply: true`, silently call `python3 runtime/memory_commit.py --character-slug {slug} --user-message \"<latest user message>\" --assistant-message \"<final reply>\" --data-root ../../../.dreamlover-data` after the reply.\n"
+        f"8. If `memory_prepare.py` returns `should_summarize_after_reply: true`, silently call `python3 runtime/memory_summarize.py --character-slug {slug} --data-root ../../../.dreamlover-data` after the reply.\n\n"
         f"## Conditional Memory System\n\n"
         f"- Memory is opt-in per turn, not always-on.\n"
-        f"- Read `../../../references/memory_policy.md` before any memory action.\n"
-        f"- Memory data lives in `../../../.dreamlover-data/memory.sqlite3`, not inside this skill package.\n"
+        f"- Memory data lives in `<workspace>/.dreamlover-data/memory.sqlite3`, not inside this skill package.\n"
         f"- Default behavior: no memory read and no memory write.\n"
         f"- Ordinary small talk should usually skip memory scripts entirely.\n"
         f"- If `python3` is not available, skip memory scripts and continue in no-memory mode.\n"
@@ -722,32 +777,56 @@ def build_child_skill(name: str, slug: str, target_use: str, allow_low_confidenc
     )
 
 
-def package_targets(
-    root: Path,
-    slug: str,
-    install_scope: str,
-    output_root: str | None,
-) -> tuple[Path, Path | None]:
-    primary_root = resolve_root(
-        root,
-        output_root,
-        DEFAULT_ARCHIVE_ROOT if install_scope == "archive" else DEFAULT_INSTALL_ROOT,
-    )
-    primary_dir = primary_root / slug
-    archive_dir = None
-    default_archive_dir = (root / DEFAULT_ARCHIVE_ROOT) / slug
-    if install_scope == "both" and primary_dir != default_archive_dir:
-        archive_dir = default_archive_dir
-    return primary_dir, archive_dir
+def canonical_source_dir(root: Path, slug: str) -> Path:
+    return (root / DEFAULT_ARCHIVE_ROOT) / slug
+
+
+def codex_package_dir(root: Path, slug: str, output_root: str | None) -> Path:
+    return resolve_root(root, output_root, DEFAULT_INSTALL_ROOT) / slug
+
+
+def openclaw_package_dir(workspace: str, slug: str) -> Path:
+    return Path(workspace) / ".agents" / "skills" / slug
+
+
+def ensure_static_source_dir(source_dir: Path) -> None:
+    source_dir.mkdir(parents=True, exist_ok=True)
+    (source_dir / "sources").mkdir(parents=True, exist_ok=True)
+    (source_dir / "versions").mkdir(parents=True, exist_ok=True)
 
 
 def ensure_package_dir(package_dir: Path) -> None:
     package_dir.mkdir(parents=True, exist_ok=True)
     (package_dir / "sources").mkdir(parents=True, exist_ok=True)
     (package_dir / "versions").mkdir(parents=True, exist_ok=True)
+    (package_dir / "runtime").mkdir(parents=True, exist_ok=True)
 
 
-def write_package(
+def copy_runtime_scripts(package_dir: Path) -> None:
+    runtime_dir = package_dir / "runtime"
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+    for filename in RUNTIME_SCRIPT_NAMES:
+        source_path = repo_root() / "scripts" / filename
+        (runtime_dir / filename).write_text(source_path.read_text(encoding="utf-8"), encoding="utf-8")
+
+
+def write_static_source(
+    source_dir: Path,
+    canon_text: str,
+    persona_text: str,
+    style_text: str,
+    meta: dict,
+    normalized_payload: dict,
+) -> None:
+    ensure_static_source_dir(source_dir)
+    (source_dir / "canon.md").write_text(canon_text, encoding="utf-8")
+    (source_dir / "persona.md").write_text(persona_text, encoding="utf-8")
+    (source_dir / "style_examples.md").write_text(style_text, encoding="utf-8")
+    write_json(source_dir / "meta.json", meta)
+    write_json(source_dir / "sources" / "normalized.json", normalized_payload)
+
+
+def write_platform_package(
     package_dir: Path,
     canon_text: str,
     persona_text: str,
@@ -757,6 +836,7 @@ def write_package(
     normalized_payload: dict,
 ) -> None:
     ensure_package_dir(package_dir)
+    copy_runtime_scripts(package_dir)
     (package_dir / "canon.md").write_text(canon_text, encoding="utf-8")
     (package_dir / "persona.md").write_text(persona_text, encoding="utf-8")
     (package_dir / "style_examples.md").write_text(style_text, encoding="utf-8")
@@ -938,7 +1018,11 @@ def build_generated_confirmation_summary(
     return summary_lines
 
 
-def build_interactive_outputs(existing: dict, forced_slug: str | None) -> tuple[str, str, str, dict, str, dict]:
+def build_interactive_outputs(
+    existing: dict,
+    forced_slug: str | None,
+    preset_openclaw_workspace: str | None = None,
+) -> tuple[str, str, str, dict, dict]:
     intake = interactive_intake(existing)
     if forced_slug:
         intake["slug"] = forced_slug
@@ -973,12 +1057,6 @@ def build_interactive_outputs(existing: dict, forced_slug: str | None) -> tuple[
         intake["source_paths"],
         updated_at,
     )
-    skill_text = build_child_skill(
-        intake["character_name"],
-        intake["slug"],
-        intake["target_use"],
-        intake["allow_low_confidence_persona"],
-    )
     print("Review the generated draft summary before any files are written:")
     print("\n".join(build_generated_confirmation_summary(intake, canon_text, persona_text, style_text)))
     intake["confirmed"] = prompt_yes_no("Confirm this generated draft and allow file creation", False)
@@ -994,7 +1072,15 @@ def build_interactive_outputs(existing: dict, forced_slug: str | None) -> tuple[
                 indent=2,
             )
         )
-    return canon_text, persona_text, style_text, normalized_payload, skill_text, intake
+    if preset_openclaw_workspace:
+        intake["export_openclaw"] = True
+        intake["openclaw_workspace"] = preset_openclaw_workspace
+    else:
+        intake["export_openclaw"] = prompt_yes_no("Also export this character to an OpenClaw workspace", False)
+        intake["openclaw_workspace"] = (
+            prompt_required("OpenClaw workspace path") if intake["export_openclaw"] else ""
+        )
+    return canon_text, persona_text, style_text, normalized_payload, intake
 
 
 def main() -> None:
@@ -1002,12 +1088,12 @@ def main() -> None:
     parser.add_argument("--action", required=True, choices=["create", "update", "list"], help="Operation to run.")
     parser.add_argument("--slug", help="Character slug.")
     parser.add_argument("--root", default=str(repo_root()), help="Repository root.")
-    parser.add_argument("--output-root", help="Override the primary output root. Defaults to ./.agents/skills for codex installs.")
+    parser.add_argument("--output-root", help="Override the Codex installation root. Defaults to ./.agents/skills.")
     parser.add_argument(
         "--install-scope",
-        default="both",
+        default="codex",
         type=parse_scope,
-        help="Where to write packages: codex, archive, or both. Default writes to ./.agents/skills and mirrors to characters.",
+        help="Legacy compatibility flag. `codex` writes canonical source plus Codex install. `archive` writes only canonical source. `both` behaves like `codex`.",
     )
     parser.add_argument(
         "--list-scope",
@@ -1024,6 +1110,7 @@ def main() -> None:
     parser.add_argument("--canon-file", help="Optional canon markdown path.")
     parser.add_argument("--persona-file", help="Optional persona markdown path.")
     parser.add_argument("--style-file", help="Optional style markdown path.")
+    parser.add_argument("--openclaw-workspace", help="Optional OpenClaw workspace to export to after generation.")
     parser.add_argument("--skip-lint", action="store_true", help="Skip post-write package linting.")
     args = parser.parse_args()
 
@@ -1040,10 +1127,9 @@ def main() -> None:
         raise SystemExit("--slug is required for create and update unless --interactive is used")
 
     placeholder_slug = effective_slug or "interactive-intake"
-    primary_dir, archive_dir = package_targets(root, placeholder_slug, args.install_scope, args.output_root)
-    meta_candidates = [primary_dir / "meta.json"]
-    if archive_dir is not None:
-        meta_candidates.append(archive_dir / "meta.json")
+    canonical_dir = canonical_source_dir(root, placeholder_slug)
+    codex_dir = codex_package_dir(root, placeholder_slug, args.output_root)
+    meta_candidates = [canonical_dir / "meta.json", codex_dir / "meta.json"]
     existing = load_existing_meta(meta_candidates)
     if args.name:
         existing.setdefault("requested_character_name", args.name)
@@ -1051,18 +1137,22 @@ def main() -> None:
         existing.setdefault("requested_character_name", args.slug)
 
     if args.interactive:
-        canon_text, persona_text, style_text, normalized_payload, skill_text, intake = build_interactive_outputs(existing, args.slug)
+        canon_text, persona_text, style_text, normalized_payload, intake = build_interactive_outputs(
+            existing,
+            args.slug,
+            args.openclaw_workspace,
+        )
         name = intake["character_name"]
         effective_slug = intake["slug"]
         source_work = intake["source_work"]
         target_use = intake["target_use"]
         source_types = intake["source_types"]
         allow_low_confidence = intake["allow_low_confidence_persona"]
-        primary_dir, archive_dir = package_targets(root, effective_slug, args.install_scope, args.output_root)
+        openclaw_workspace = intake.get("openclaw_workspace", "")
     else:
-        canon_existing = load_existing_text([primary_dir / "canon.md"] + ([archive_dir / "canon.md"] if archive_dir else []))
-        persona_existing = load_existing_text([primary_dir / "persona.md"] + ([archive_dir / "persona.md"] if archive_dir else []))
-        style_existing = load_existing_text([primary_dir / "style_examples.md"] + ([archive_dir / "style_examples.md"] if archive_dir else []))
+        canon_existing = load_existing_text([canonical_dir / "canon.md", codex_dir / "canon.md"])
+        persona_existing = load_existing_text([canonical_dir / "persona.md", codex_dir / "persona.md"])
+        style_existing = load_existing_text([canonical_dir / "style_examples.md", codex_dir / "style_examples.md"])
         canon_text = ensure_sections(read_text(args.canon_file) or canon_existing, CANON_HEADERS)
         persona_text = ensure_sections(read_text(args.persona_file) or persona_existing, PERSONA_HEADERS)
         style_text = ensure_sections(read_text(args.style_file) or style_existing, STYLE_HEADERS)
@@ -1105,7 +1195,7 @@ def main() -> None:
             },
             "entries": [],
         }
-        skill_text = build_child_skill(name, effective_slug or "character", target_use, allow_low_confidence)
+        openclaw_workspace = args.openclaw_workspace or ""
 
     validate_cross_headers(canon_text, PERSONA_HEADERS + STYLE_HEADERS, "canon")
     validate_cross_headers(persona_text, CANON_HEADERS + STYLE_HEADERS, "persona")
@@ -1113,6 +1203,19 @@ def main() -> None:
 
     created_at = existing.get("created_at", utc_now())
     updated_at = utc_now()
+    canonical_dir = canonical_source_dir(root, effective_slug or placeholder_slug)
+    codex_dir = codex_package_dir(root, effective_slug or placeholder_slug, args.output_root)
+    openclaw_dir = openclaw_package_dir(openclaw_workspace, effective_slug) if openclaw_workspace else None
+    write_codex_install = args.install_scope != "archive"
+    generated_for = ["codex"] if write_codex_install else []
+    if openclaw_dir is not None:
+        generated_for.append("openclaw")
+    canonical_source = relative_path(root, canonical_dir) or str(canonical_dir)
+    export_targets: dict[str, str] = {}
+    if write_codex_install:
+        export_targets["codex"] = relative_path(root, codex_dir) or str(codex_dir)
+    if openclaw_dir is not None:
+        export_targets["openclaw"] = str(openclaw_dir)
     meta = {
         "slug": effective_slug,
         "character_name": name,
@@ -1125,32 +1228,72 @@ def main() -> None:
         "search_scope": normalized_payload["intake"].get("search_scope", DEFAULT_SEARCH_SCOPE),
         "archive_mirror": normalized_payload["intake"].get("archive_mirror", True),
         "source_paths": normalized_payload["intake"].get("source_paths", []),
-        "layout_version": "0.6",
+        "layout_version": "0.7",
         "created_at": created_at,
         "updated_at": updated_at,
-        "primary_path": relative_path(root, primary_dir),
-        "archive_path": relative_path(root, archive_dir),
+        "primary_path": relative_path(root, codex_dir) if write_codex_install else None,
+        "archive_path": canonical_source,
         "install_scope": args.install_scope,
+        "canonical_source": canonical_source,
+        "export_targets": export_targets,
+        "generated_for": generated_for,
+        "openclaw_exported_at": updated_at if openclaw_dir is not None else None,
     }
     normalized_payload["source"]["normalized_at"] = updated_at
     normalized_payload["intake"]["slug"] = effective_slug
     normalized_payload["intake"]["character_name"] = name
+    normalized_payload["exports"] = export_targets
+    normalized_payload["canonical_source"] = canonical_source
 
-    write_package(primary_dir, canon_text, persona_text, style_text, skill_text, meta, normalized_payload)
-    if archive_dir is not None:
-        write_package(archive_dir, canon_text, persona_text, style_text, skill_text, meta, normalized_payload)
+    write_static_source(canonical_dir, canon_text, persona_text, style_text, meta, normalized_payload)
+    if write_codex_install:
+        write_platform_package(
+            codex_dir,
+            canon_text,
+            persona_text,
+            style_text,
+            build_child_skill("codex", name, effective_slug or "character", target_use, allow_low_confidence),
+            meta,
+            normalized_payload,
+        )
+    if openclaw_dir is not None:
+        write_platform_package(
+            openclaw_dir,
+            canon_text,
+            persona_text,
+            style_text,
+            build_child_skill("openclaw", name, effective_slug or "character", target_use, allow_low_confidence),
+            meta,
+            normalized_payload,
+        )
 
     lint_results: dict[str, dict] = {}
     if not args.skip_lint:
-        lint_results["primary"] = lint_package(primary_dir)
-        if archive_dir is not None:
-            lint_results["archive"] = lint_package(archive_dir)
+        if write_codex_install:
+            lint_results["codex"] = lint_package(codex_dir)
+        if openclaw_dir is not None:
+            lint_results["openclaw"] = lint_package(openclaw_dir)
 
-    print(json.dumps({"package": meta, "lint": lint_results}, ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {
+                "canonical_source": canonical_source,
+                "codex_install": export_targets.get("codex"),
+                "openclaw_export": export_targets.get("openclaw"),
+                "package": meta,
+                "lint": lint_results,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":
     main()
+
+
+
 
 
 
