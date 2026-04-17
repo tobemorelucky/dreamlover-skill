@@ -45,6 +45,7 @@ META_FIELDS = [
     "source_decision_policy",
     "input_mode",
     "search_scope",
+    "archive_mirror",
     "source_paths",
     "layout_version",
     "created_at",
@@ -187,14 +188,19 @@ def lint_skill_markdown(path: Path, expected_slug: str | None, messages: list[di
         add_message(messages, path, "warning", "Child skill should declare OpenClaw python3 requirements in front matter.")
     if "openclaw" not in description:
         add_message(messages, path, "warning", "Description should mention OpenClaw compatibility.")
-    if "memory_router.py" not in text:
-        add_message(messages, path, "warning", "Child skill should mention memory_router.py for conditional memory gating.")
-    if "memory_fetch.py" not in text or "memory_commit.py" not in text:
-        add_message(messages, path, "warning", "Child skill should mention memory_fetch.py and memory_commit.py.")
+    if "memory_prepare.py" not in text:
+        add_message(messages, path, "warning", "Child skill should mention memory_prepare.py for conditional memory gating.")
+    if "memory_commit.py" not in text:
+        add_message(messages, path, "warning", "Child skill should mention memory_commit.py for conditional memory writes.")
+    if "memory_summarize.py" not in text:
+        add_message(messages, path, "warning", "Child skill should mention memory_summarize.py for threshold summaries.")
     if ".dreamlover-data" not in text:
         add_message(messages, path, "warning", "Child skill should point dynamic memory storage to .dreamlover-data.")
     if "python3" not in text or "no-memory mode" not in text:
         add_message(messages, path, "warning", "Child skill should describe python3 dependency and no-memory fallback.")
+    lowered = text.lower()
+    if "i will check memory first" in lowered or "i am running the memory gate" in lowered:
+        add_message(messages, path, "warning", "Child skill should not instruct user-visible internal flow narration.")
 
     for pattern in PLACEHOLDER_PATTERNS:
         if pattern.search(text):

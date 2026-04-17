@@ -79,6 +79,7 @@ Generated packages should also satisfy these lint expectations:
 - `source_decision_policy`
 - `input_mode`
 - `search_scope`
+- `archive_mirror`
 - `source_paths`
 - `layout_version`
 - `created_at`
@@ -94,9 +95,9 @@ The child `SKILL.md` must tell the runtime:
 - read `canon.md` first for facts
 - use `persona.md` for behavior and interaction strategy
 - use `style_examples.md` for wording texture
-- route each turn through `scripts/memory_router.py`
-- call `scripts/memory_fetch.py` only when the router says memory read is needed
-- call `scripts/memory_commit.py` only when the router says memory write is needed
+- only call `scripts/memory_prepare.py` when the latest turn suggests memory may matter
+- use returned `memory_context` only when `memory_prepare.py` says read is needed
+- call `scripts/memory_commit.py` only when `memory_prepare.py` says memory write is needed
 - call `scripts/memory_summarize.py` only when the summarization threshold is reached
 - never invent prior chat history when no relevant memory exists
 - never upgrade persona inference into canon during conversation
@@ -105,3 +106,4 @@ The child `SKILL.md` must tell the runtime:
 - make `description` explicit that the skill is for OpenClaw roleplay or answering in the character's voice
 - be directly discoverable from `./.agents/skills/{slug}/`
 - degrade to no-memory mode when `python3` is unavailable instead of failing the whole skill
+- never expose internal memory checks to the user unless a real failure affects the reply

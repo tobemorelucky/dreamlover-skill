@@ -29,7 +29,18 @@ The minimum intake bundle is:
 
 If the user says only something like "create a Rem skill", do not jump straight to `canon`, `persona`, or `style_examples`.
 Do not dump the full questionnaire in one message.
+Use a slot-state intake model with these canonical slots:
+
+- `source_policy`
+- `input_mode`
+- `character_name`
+- `source_work`
+- `material_types`
+- `allow_low_confidence_persona`
+- `archive_mirror`
+
 Ask exactly one unresolved intake question at a time, wait for the user's answer, then ask the next needed question.
+If a slot is already clearly answered, do not ask it again unless the answer is ambiguous, conflicts with another slot, or the user explicitly changes it.
 Build the draft in memory first, then summarize the generated key factors for confirmation before writing files.
 
 ## Source Decision Policy
@@ -161,6 +172,7 @@ Use these tools when deterministic output helps:
 
 Use these runtime memory scripts when composing or validating child skill behavior:
 
+- `scripts/memory_prepare.py`
 - `scripts/memory_router.py`
 - `scripts/memory_fetch.py`
 - `scripts/memory_commit.py`
@@ -199,5 +211,6 @@ Before finishing:
 - make sure the child skill is discoverable from `./.agents/skills/{slug}/`
 - make sure the installed package passes `tools/skill_linter.py` without errors
 - make sure a snapshot exists after creation or major updates
-- make sure the child skill only reads or writes memory when the router says it should
+- make sure the child skill only reads or writes memory when silent conditional routing says it should
 - make sure the child skill never fabricates prior conversation history
+- make sure the child skill never exposes internal memory flow to the user unless a real failure affects the answer

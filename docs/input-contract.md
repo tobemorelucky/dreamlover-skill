@@ -26,6 +26,7 @@ For intake-first generation, the minimum user-provided request bundle should inc
 
 If these fields are incomplete, the generator should ask follow-up intake questions before creating the child skill.
 The generator should ask one unresolved intake question at a time instead of dumping the entire form in one message.
+Already resolved slots must not be asked again unless the answer is ambiguous, conflicts with another answer, or the user explicitly changes it.
 No character files should be created or modified before the user confirms the intake summary.
 
 `target_use` is no longer a hard intake requirement.

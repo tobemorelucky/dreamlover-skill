@@ -65,6 +65,65 @@ SEARCH_SCOPE_LABELS = {
     "medium": "Medium search scope",
     "large": "Large search scope",
 }
+CANONICAL_SLOTS = [
+    "source_policy",
+    "input_mode",
+    "character_name",
+    "source_work",
+    "material_types",
+    "allow_low_confidence_persona",
+    "archive_mirror",
+]
+SOURCE_POLICY_ALIASES = {
+    "1": "user_only",
+    "只用我给的信息": "user_only",
+    "只用我提供的信息": "user_only",
+    "仅用我给的信息": "user_only",
+    "仅用用户信息": "user_only",
+    "user_only": "user_only",
+    "2": "official_wiki_only",
+    "官方资料+wiki资料": "official_wiki_only",
+    "官方资料+wiki": "official_wiki_only",
+    "官方+wiki": "official_wiki_only",
+    "official_wiki_only": "official_wiki_only",
+    "3": "official_plus_user",
+    "官方资料+我给的信息": "official_plus_user",
+    "官方资料+用户资料": "official_plus_user",
+    "官方+用户": "official_plus_user",
+    "official_plus_user": "official_plus_user",
+    "4": "official_quick",
+    "快速生成": "official_quick",
+    "快生成": "official_quick",
+    "直接生成": "official_quick",
+    "official_quick": "official_quick",
+}
+INPUT_MODE_ALIASES = {
+    "1": "direct_text",
+    "我直接贴文本": "direct_text",
+    "直接贴文本": "direct_text",
+    "聊天里贴文本": "direct_text",
+    "聊天里发": "direct_text",
+    "直接输入": "direct_text",
+    "chat": "direct_text",
+    "direct_text": "direct_text",
+    "2": "file_path",
+    "文件路径": "file_path",
+    "路径": "file_path",
+    "给你文件路径": "file_path",
+    "发文件路径": "file_path",
+    "file_path": "file_path",
+}
+SEARCH_SCOPE_ALIASES = {
+    "1": "small",
+    "小": "small",
+    "small": "small",
+    "2": "medium",
+    "中": "medium",
+    "medium": "medium",
+    "3": "large",
+    "大": "large",
+    "large": "large",
+}
 SOURCE_TYPE_SYNONYMS = {
     "official": "official",
     "official-setting": "official",
@@ -291,9 +350,9 @@ def parse_bool_flag(value: str | None, default: bool = False) -> bool:
     if value is None:
         return default
     normalized = value.strip().lower()
-    if normalized in {"1", "true", "t", "yes", "y"}:
+    if normalized in {"1", "true", "t", "yes", "y", "允许", "允许推断", "允许补充", "可以", "可以补充"}:
         return True
-    if normalized in {"0", "false", "f", "no", "n"}:
+    if normalized in {"0", "false", "f", "no", "n", "不允许", "不允许推断", "不要补充", "不可以"}:
         return False
     raise ValueError(f"Unsupported boolean value: {value}")
 
@@ -327,6 +386,7 @@ def prompt_choice(
     choices: dict[str, str],
     default_key: str | None = None,
     labels: dict[str, str] | None = None,
+    aliases: dict[str, str] | None = None,
 ) -> str:
     default_suffix = f" [{default_key}]" if default_key else ""
     while True:
@@ -337,6 +397,9 @@ def prompt_choice(
         value = input(f"Choose one{default_suffix}: ").strip()
         if not value and default_key:
             value = default_key
+        normalized_value = value.strip().lower()
+        if aliases and normalized_value in aliases:
+            return aliases[normalized_value]
         if value in choices:
             return choices[value]
         print("Please choose a valid option.")
@@ -368,6 +431,37 @@ def read_source_paths(raw_paths: str) -> tuple[list[str], str]:
     if not paths:
         raise ValueError("At least one source path is required when input mode is file_path.")
     return paths, "\n\n".join(contents).strip()
+
+
+def build_slot_state(existing: dict) -> dict:
+    return {
+        "source_policy": existing.get("source_decision_policy"),
+        "input_mode": existing.get("input_mode"),
+        "character_name": existing.get("character_name") or existing.get("requested_character_name"),
+        "source_work": existing.get("source_work"),
+        "material_types": existing.get("source_types"),
+        "allow_low_confidence_persona": existing.get("allow_low_confidence_persona"),
+        "archive_mirror": existing.get("archive_mirror"),
+    }
+
+
+def infer_material_types_from_policy(source_policy: str) -> list[str]:
+    if source_policy == "user_only":
+        return normalize_source_types("user")
+    if source_policy == "official_wiki_only":
+        return normalize_source_types("official,wiki")
+    if source_policy == "official_plus_user":
+        return normalize_source_types("official,user")
+    return normalize_source_types("official")
+
+
+def compute_missing_slots(slot_state: dict, source_policy: str | None) -> list[str]:
+    required = ["source_policy", "character_name", "material_types", "allow_low_confidence_persona", "archive_mirror"]
+    if source_policy in {"user_only", "official_plus_user"}:
+        required.append("input_mode")
+    if source_policy != "official_quick" and slot_state.get("source_work") is None:
+        required.append("source_work")
+    return [slot for slot in CANONICAL_SLOTS if slot in required and slot_state.get(slot) is None]
 
 
 def normalize_note_line(line: str) -> str:
@@ -561,6 +655,7 @@ def build_normalized_payload(
             "source_decision_policy": intake["source_decision_policy"],
             "input_mode": intake["input_mode"],
             "search_scope": intake.get("search_scope", DEFAULT_SEARCH_SCOPE),
+            "archive_mirror": intake.get("archive_mirror", True),
             "source_paths": source_paths,
         },
         "intake": {
@@ -572,6 +667,7 @@ def build_normalized_payload(
             "source_decision_policy": intake["source_decision_policy"],
             "input_mode": intake["input_mode"],
             "search_scope": intake.get("search_scope", DEFAULT_SEARCH_SCOPE),
+            "archive_mirror": intake.get("archive_mirror", True),
             "source_paths": source_paths,
             "confirmed": intake["confirmed"],
         },
@@ -588,7 +684,7 @@ def build_child_skill(name: str, slug: str, target_use: str, allow_low_confidenc
     return (
         f"---\n"
         f"name: {slug}\n"
-        f"description: OpenClaw-compatible role skill for {name}. Answer in {name}'s voice using canon, persona, style examples, and conditional memory gates.\n"
+        f"description: OpenClaw-compatible role skill for {name}. Answer directly in {name}'s voice using canon, persona, style examples, and silent conditional memory.\n"
         f"metadata: {{openclaw: {{requires: {{bins: [python3]}}}}}}\n"
         f"---\n\n"
         f"# {name}\n\n"
@@ -596,40 +692,27 @@ def build_child_skill(name: str, slug: str, target_use: str, allow_low_confidenc
         f"## Intent\n\n"
         f"- Preferred use: {target_use}\n"
         f"- Runtime slug: `{slug}`\n\n"
-        f"## OpenClaw Loading\n\n"
-        f"- Install location: `<workspace>/.agents/skills/{slug}/`\n"
-        f"- OpenClaw discovers this skill after a new session starts or after skills refresh.\n"
-        f"- In OpenClaw, this skill should be available for normal in-character conversation once discovered.\n"
-        f"- If the runtime supports explicit invocation, `${slug}` can still be used as an optional shortcut.\n\n"
-        f"## Runtime Order\n\n"
+        f"## Silent Runtime Order\n\n"
         f"1. Read `canon.md` first for facts, setting, events, and relationships.\n"
         f"2. Read `persona.md` for behavior patterns, emotional tendencies, and interaction strategy.\n"
         f"3. Read `style_examples.md` for wording texture, cadence, and short response flavor.\n"
-        f"4. Pre-reply, run the conditional memory router before deciding whether memory is needed.\n"
-        f"5. Only fetch memory if the router says `should_read: true`.\n"
-        f"6. Generate the reply.\n"
-        f"7. Post-reply, run the router again after the reply to decide whether memory should be written.\n"
-        f"8. Only commit memory if the router says `should_write: true`.\n"
-        f"9. Only summarize memory if the router says `should_summarize: true`.\n\n"
+        f"4. Only when the latest user turn suggests past context, long-term preference, nickname, or relationship state may matter, silently call `python3 ../../../scripts/memory_prepare.py --character-slug {slug} --user-message \"<latest user message>\"`.\n"
+        f"5. If `memory_prepare.py` returns `should_read: true`, use the returned `memory_context`. Do not make a separate fetch call in normal operation.\n"
+        f"6. Reply directly in character. Do not mention memory gates, routers, scripts, or checks.\n"
+        f"7. If `memory_prepare.py` returns `should_write_after_reply: true`, silently call `python3 ../../../scripts/memory_commit.py --character-slug {slug} --user-message \"<latest user message>\" --assistant-message \"<final reply>\"` after the reply.\n"
+        f"8. If `memory_prepare.py` returns `should_summarize_after_reply: true`, silently call `python3 ../../../scripts/memory_summarize.py --character-slug {slug}` after the reply.\n\n"
         f"## Conditional Memory System\n\n"
         f"- Memory is opt-in per turn, not always-on.\n"
         f"- Read `../../../references/memory_policy.md` before any memory action.\n"
         f"- Memory data lives in `../../../.dreamlover-data/memory.sqlite3`, not inside this skill package.\n"
         f"- Default behavior: no memory read and no memory write.\n"
-        f"- Use `../../../scripts/memory_router.py` before and after the reply.\n"
-        f"- If the pre-reply router returns `should_read: true`, call `../../../scripts/memory_fetch.py`.\n"
-        f"- If the post-reply router returns `should_write: true`, call `../../../scripts/memory_commit.py`.\n"
-        f"- If the post-reply router returns `should_summarize: true`, call `../../../scripts/memory_summarize.py`.\n"
-        f"- If `python3` is not available, skip the memory scripts and continue in no-memory mode.\n"
-        f"- If no relevant memory exists, answer normally and do not fabricate shared history.\n\n"
-        f"## Memory Runtime Commands\n\n"
-        f"1. `python3 ../../../scripts/memory_router.py --character-slug {slug} --phase pre --user-message \"<latest user message>\"`\n"
-        f"2. If needed: `python3 ../../../scripts/memory_fetch.py --character-slug {slug} --user-message \"<latest user message>\"`\n"
-        f"3. Generate the reply.\n"
-        f"4. `python3 ../../../scripts/memory_router.py --character-slug {slug} --phase post --user-message \"<latest user message>\" --assistant-message \"<final reply>\"`\n"
-        f"5. If needed: `python3 ../../../scripts/memory_commit.py --character-slug {slug} --user-message \"<latest user message>\" --assistant-message \"<final reply>\"`\n"
-        f"6. If needed: `python3 ../../../scripts/memory_summarize.py --character-slug {slug}`\n\n"
+        f"- Ordinary small talk should usually skip memory scripts entirely.\n"
+        f"- If `python3` is not available, skip memory scripts and continue in no-memory mode.\n"
+        f"- If no relevant memory exists, answer naturally and do not fabricate shared history.\n\n"
         f"## Rules\n\n"
+        f"- Enter the character voice immediately. Do not explain internal workflow to the user.\n"
+        f"- Never narrate internal checks, tools, or hidden preparation steps.\n"
+        f"- If a memory lookup fails and it affects the answer, use one short natural sentence instead of exposing internal tooling.\n"
         f"- Never promote persona inference into canon during live conversation.\n"
         f"- Never say \"we talked about this before\" unless fetched memory actually supports it.\n"
         f"- If facts and style conflict, facts from `canon.md` win.\n"
@@ -712,45 +795,31 @@ def list_packages(root: Path, scope: str) -> list[dict]:
 
 def interactive_intake(existing: dict) -> dict:
     print("Interactive intake mode for character skill generation.")
-
-    source_decision_policy = prompt_choice(
-        "Choose a source completion policy.",
-        SOURCE_DECISION_POLICIES,
-        next(
-            (key for key, value in SOURCE_DECISION_POLICIES.items() if value == existing.get("source_decision_policy")),
-            "1",
-        ),
-        {
-            "user_only": "Only use the information provided by the user",
-            "official_wiki_only": "Official sources plus wiki sources",
-            "official_plus_user": "Official sources plus user-provided information",
-            "official_quick": "Quick generate from official-style defaults",
-        },
+    slot_state = build_slot_state(existing)
+    slot_state["archive_mirror"] = existing.get(
+        "archive_mirror",
+        existing.get("install_scope", "both") in {"both", "archive"},
     )
 
-    input_mode = DEFAULT_INPUT_MODE
-    if source_decision_policy in {"user_only", "official_plus_user"}:
-        input_mode = prompt_choice(
-            "Choose how you will provide the source material.",
-            INPUT_MODES,
-            next(
-                (key for key, value in INPUT_MODES.items() if value == existing.get("input_mode")),
-                "1",
-            ),
-            {
-                "direct_text": "Direct text",
-                "file_path": "File path",
-            },
+    if slot_state["source_policy"] is None:
+        slot_state["source_policy"] = prompt_choice(
+            "Choose a source completion policy.",
+            SOURCE_DECISION_POLICIES,
+            "1",
+            SOURCE_DECISION_LABELS,
+            SOURCE_POLICY_ALIASES,
         )
+    source_decision_policy = slot_state["source_policy"]
 
-    requested_name = existing.get("character_name") or existing.get("requested_character_name") or ""
-    if requested_name:
+    requested_name = existing.get("requested_character_name") or existing.get("character_name") or ""
+    if slot_state["character_name"] is None and requested_name:
         if prompt_yes_no(f'Use "{requested_name}" as the character name', True):
-            character_name = requested_name
+            slot_state["character_name"] = requested_name
         else:
-            character_name = prompt_required("Character name")
-    else:
-        character_name = prompt_required("Character name")
+            slot_state["character_name"] = prompt_required("Character name")
+    elif slot_state["character_name"] is None:
+        slot_state["character_name"] = prompt_required("Character name")
+    character_name = slot_state["character_name"]
 
     if source_decision_policy == "official_quick":
         effective_slug = slugify(character_name)
@@ -759,12 +828,13 @@ def interactive_intake(existing: dict) -> dict:
             "character_name": character_name,
             "source_work": existing.get("source_work", ""),
             "target_use": existing.get("target_use") or "openclaw roleplay conversation",
-            "source_types": normalize_source_types("official"),
+            "source_types": infer_material_types_from_policy(source_decision_policy),
             "allow_low_confidence_persona": existing.get("allow_low_confidence_persona", False),
             "source_decision_policy": source_decision_policy,
             "input_mode": DEFAULT_INPUT_MODE,
             "search_scope": "medium",
             "source_paths": [],
+            "archive_mirror": slot_state["archive_mirror"],
             "raw_material_notes": "",
             "canon_notes": "",
             "persona_notes": "",
@@ -772,43 +842,47 @@ def interactive_intake(existing: dict) -> dict:
             "confirmed": False,
         }
 
-    source_work = existing.get("source_work", "")
-    if source_decision_policy != "official_quick":
-        source_work = input("Source work (leave blank if this is a fully original character): ").strip()
+    if source_decision_policy in {"user_only", "official_plus_user"} and slot_state["input_mode"] is None:
+        slot_state["input_mode"] = prompt_choice(
+            "Choose how you will provide the source material.",
+            INPUT_MODES,
+            "1",
+            INPUT_MODE_LABELS,
+            INPUT_MODE_ALIASES,
+        )
+    input_mode = slot_state["input_mode"] or DEFAULT_INPUT_MODE
 
-    search_scope = DEFAULT_SEARCH_SCOPE
-    if source_decision_policy in {"official_wiki_only", "official_plus_user", "official_quick"} and source_work:
+    if slot_state["source_work"] is None:
+        slot_state["source_work"] = input("Source work (leave blank if this is a fully original character): ").strip()
+    source_work = slot_state["source_work"]
+
+    search_scope = existing.get("search_scope", DEFAULT_SEARCH_SCOPE)
+    if source_decision_policy in {"official_wiki_only", "official_plus_user"} and source_work:
         search_scope = prompt_choice(
             "Choose the public search scope.",
             SEARCH_SCOPES,
             "2",
-            {
-                "small": "Small",
-                "medium": "Medium",
-                "large": "Large",
-            },
+            SEARCH_SCOPE_LABELS,
+            SEARCH_SCOPE_ALIASES,
         )
 
     source_paths: list[str] = []
     raw_material_notes = ""
-    if source_decision_policy != "official_quick":
-        if input_mode == "file_path":
-            raw_path_block = prompt_multiline("Provide one or more file paths for the source material.")
-            source_paths, raw_material_notes = read_source_paths(raw_path_block)
-        elif input_mode == "direct_text":
-            raw_material_notes = prompt_multiline("Paste the source text or notes you want the generator to use.")
+    if input_mode == "file_path":
+        raw_path_block = prompt_multiline("Provide one or more file paths for the source material.")
+        source_paths, raw_material_notes = read_source_paths(raw_path_block)
+    elif input_mode == "direct_text":
+        raw_material_notes = prompt_multiline("Paste the source text or notes you want the generator to use.")
 
-    if source_decision_policy == "user_only":
-        source_types = normalize_source_types("user")
-    elif source_decision_policy == "official_wiki_only":
-        source_types = normalize_source_types("official,wiki")
-    else:
-        source_types = normalize_source_types("official,user")
+    if slot_state["material_types"] is None:
+        slot_state["material_types"] = infer_material_types_from_policy(source_decision_policy)
 
-    allow_low_confidence = prompt_yes_no(
-        "If the materials are not enough, may I add a little personality supplementation for you",
-        existing.get("allow_low_confidence_persona", False),
-    )
+    if slot_state["allow_low_confidence_persona"] is None:
+        slot_state["allow_low_confidence_persona"] = prompt_yes_no(
+            "If the materials are not enough, may I add a little personality supplementation for you",
+            False,
+        )
+    allow_low_confidence = slot_state["allow_low_confidence_persona"]
 
     canon_notes = ""
     persona_notes = ""
@@ -821,12 +895,13 @@ def interactive_intake(existing: dict) -> dict:
         "character_name": character_name,
         "source_work": source_work,
         "target_use": target_use,
-        "source_types": source_types,
+        "source_types": slot_state["material_types"],
         "allow_low_confidence_persona": allow_low_confidence,
         "source_decision_policy": source_decision_policy,
         "input_mode": input_mode,
         "search_scope": search_scope,
         "source_paths": source_paths,
+        "archive_mirror": slot_state["archive_mirror"],
         "raw_material_notes": raw_material_notes,
         "canon_notes": canon_notes,
         "persona_notes": persona_notes,
@@ -1011,6 +1086,7 @@ def main() -> None:
                 "source_decision_policy": source_decision_policy,
                 "input_mode": input_mode,
                 "search_scope": existing.get("search_scope", DEFAULT_SEARCH_SCOPE),
+                "archive_mirror": existing.get("archive_mirror", True),
                 "source_paths": existing.get("source_paths", []),
             },
             "intake": {
@@ -1023,6 +1099,7 @@ def main() -> None:
                 "source_decision_policy": source_decision_policy,
                 "input_mode": input_mode,
                 "search_scope": existing.get("search_scope", DEFAULT_SEARCH_SCOPE),
+                "archive_mirror": existing.get("archive_mirror", True),
                 "source_paths": existing.get("source_paths", []),
                 "confirmed": True,
             },
@@ -1046,6 +1123,7 @@ def main() -> None:
         "source_decision_policy": normalized_payload["intake"]["source_decision_policy"],
         "input_mode": normalized_payload["intake"]["input_mode"],
         "search_scope": normalized_payload["intake"].get("search_scope", DEFAULT_SEARCH_SCOPE),
+        "archive_mirror": normalized_payload["intake"].get("archive_mirror", True),
         "source_paths": normalized_payload["intake"].get("source_paths", []),
         "layout_version": "0.6",
         "created_at": created_at,
@@ -1073,5 +1151,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
 
 

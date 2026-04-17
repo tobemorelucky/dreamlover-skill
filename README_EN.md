@@ -1,4 +1,4 @@
-# dreamlover-skill
+﻿# dreamlover-skill
 
 > Distill anime and game character materials into a generator skill that produces OpenClaw-ready child role skills.
 
@@ -57,12 +57,13 @@ Generated child skills keep the conditional memory system.
 
 - default: do not read memory
 - default: do not write memory
-- pre-reply: run `scripts/memory_router.py`
-- only if `should_read: true`: run `scripts/memory_fetch.py`
-- generate the reply
-- post-reply: run `scripts/memory_router.py`
-- only if `should_write: true`: run `scripts/memory_commit.py`
-- only if `should_summarize: true`: run `scripts/memory_summarize.py`
+- only when the latest turn suggests memory may matter: run `scripts/memory_prepare.py`
+- only if `should_read: true`: use the returned `memory_context`
+- generate the reply directly in character
+
+- only if `should_write_after_reply: true`: run `scripts/memory_commit.py`
+- only if `should_summarize_after_reply: true`: run `scripts/memory_summarize.py`
+- never expose memory gates or internal script flow to the user
 
 Local memory lives inside the workspace:
 
@@ -115,21 +116,21 @@ This repo is not only about explicit `$slug` invocation. The main runtime target
 Read gate should stay off for small talk:
 
 ```bash
-python scripts/memory_router.py --character-slug rem --phase pre --user-message "The weather is nice today."
+python scripts/memory_prepare.py --character-slug rem --user-message "The weather is nice today."
 ```
 
 Read gate should trigger for memory-dependent turns:
 
 ```bash
-python scripts/memory_router.py --character-slug rem --phase pre --user-message "你还记得我上次说过什么吗"
+python scripts/memory_prepare.py --character-slug rem --user-message "Do you remember what I told you last time?"
 ```
 
 Write gate should trigger for stable preferences:
 
 ```bash
-python scripts/memory_router.py --character-slug rem --phase post --user-message "以后叫我阿昭"
-python scripts/memory_commit.py --character-slug rem --user-message "以后叫我阿昭"
-python scripts/memory_fetch.py --character-slug rem --user-message "你还记得我喜欢你怎么叫我吗"
+python scripts/memory_prepare.py --character-slug rem --user-message "From now on, call me Azhao."
+python scripts/memory_commit.py --character-slug rem --user-message "From now on, call me Azhao."
+python scripts/memory_fetch.py --character-slug rem --user-message "浣犺繕璁板緱鎴戝枩娆綘鎬庝箞鍙垜鍚?
 ```
 
 ## Requirements
@@ -141,3 +142,5 @@ python scripts/memory_fetch.py --character-slug rem --user-message "你还记得
 ## License
 
 MIT
+
+

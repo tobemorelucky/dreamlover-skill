@@ -22,6 +22,7 @@
 - `python tools/skill_writer.py --action create|update|list [--slug <slug>] --root <path> [--interactive] [--output-root <path>] [--install-scope codex|archive|both] [--target-use <text>] [--source-types <csv>] [--allow-low-confidence-persona yes|no] [--skip-lint]`
 - `python tools/version_manager.py --action snapshot|rollback --slug <slug> --root <path> [--output-root <path>] [--scope codex|archive|both]`
 - `python tools/skill_linter.py --slug <slug> --root <path> [--output-root <path>] [--scope codex|archive|both]`
+- `python scripts/memory_prepare.py --character-slug <slug> --user-message <text> [--user-id <id>]`
 - `python scripts/memory_router.py --character-slug <slug> --user-message <text> [--assistant-message <text>] [--phase pre|post] [--user-id <id>]`
 - `python scripts/memory_fetch.py --character-slug <slug> --user-message <text> [--user-id <id>]`
 - `python scripts/memory_commit.py --character-slug <slug> --user-message <text> [--assistant-message <text>] [--user-id <id>]`
@@ -42,8 +43,10 @@
 - `skill_writer.py --interactive` performs intake-first prompting and writes the intake bundle into `meta.json` and `sources/normalized.json`
 - the hard intake gate must complete and be confirmed before any character files are written
 - the hard intake gate asks one unresolved question at a time instead of sending the entire checklist at once
+- the intake state tracks canonical slots and must not re-ask slots that are already clearly resolved
 - `target_use` defaults when omitted and is not a required intake question
-- child skills use conditional memory gates instead of reading or writing memory every turn
+- child skills use silent conditional memory preparation instead of reading or writing memory every turn
 - local runtime memory lives under `./.dreamlover-data/` and must not be written into `SKILL.md`
 - generated child `SKILL.md` files use OpenClaw-compatible front matter and declare `python3` when memory scripts are available
 - when `python3` is unavailable, child skills fall back to no-memory mode rather than failing completely
+- child skills must not expose internal memory checks to the user during normal conversation

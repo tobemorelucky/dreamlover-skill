@@ -6,7 +6,7 @@ Use this policy for generated child skills that support conditional memory.
 
 - Do not read memory by default.
 - Do not write memory by default.
-- Only call memory scripts when `memory_router.py` says the current turn qualifies.
+- Do not mention memory checks, routers, scripts, or internal tooling to the user.
 
 ## What Can Be Remembered
 
@@ -32,24 +32,24 @@ Use this policy for generated child skills that support conditional memory.
 
 Read memory only when at least one of these conditions is true:
 
-- the user says things like `上次`, `之前`, `还记得`, `答应我`, or `我们聊过`
-- the current question clearly depends on ongoing context
-- the user references an existing preference, nickname, relationship, or long-term project
+- the user says things like `上次`, `之前`, `还记得`, `你答应我`, `我说过`, `我们聊过`
+- the user asks things like `你知道我喜欢吃什么吗` or `你记得我叫什么吗`
+- the current question clearly depends on an existing preference, nickname, relationship, or long-term project
 - the roleplay needs continuity in relationship state
 
-If no read condition is hit, do not call memory fetch.
+If no read condition is hit, do not call memory scripts.
 
 ## Write Gate
 
 Write memory only when at least one of these conditions is true:
 
-- the user reveals a stable preference or long-term fact
+- the user reveals a stable preference, nickname, boundary, or long-term fact
 - an important shared event happens
 - the relationship state changes
 - a future promise, todo, or agreement appears
-- the turn contains high emotional intensity or a clear boundary
+- the turn contains strong emotional change or a clear boundary
 
-If no write condition is hit, do not commit memory.
+Ordinary small talk such as `今天天气不错` or `我有点困` should not be written to memory.
 
 ## Truthfulness Rule
 

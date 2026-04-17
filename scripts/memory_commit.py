@@ -12,20 +12,19 @@ def clamp_intensity(value: int) -> int:
 
 
 def detect_emotional_intensity(text: str) -> int:
-    score = 0
-    score += min(2, text.count("!") + text.count("！"))
-    if re.search(r"(难过|崩溃|生气|害怕|焦虑|开心|兴奋|委屈|别|不要|不许)", text):
+    score = min(2, text.count("!") + text.count("！"))
+    if re.search(r"(我很难过|我很开心|我很生气|我很崩溃|我真的受不了)", text):
         score += 1
     return clamp_intensity(score)
 
 
 def extract_profile_updates(text: str) -> list[tuple[str, str]]:
     updates: list[tuple[str, str]] = []
+
     nickname_patterns = [
-        r"以后都喜欢你叫我(?P<value>[^，。！？\n]{1,20})",
-        r"以后叫我(?P<value>[^，。！？\n]{1,20})",
-        r"你可以叫我(?P<value>[^，。！？\n]{1,20})",
-        r"我的昵称是(?P<value>[^，。！？\n]{1,20})",
+        r"以后(?:都)?(?:请|就)?叫我(?P<value>[\u4e00-\u9fffA-Za-z0-9_-]{1,20})",
+        r"你可以叫我(?P<value>[\u4e00-\u9fffA-Za-z0-9_-]{1,20})",
+        r"我更喜欢你叫我(?P<value>[\u4e00-\u9fffA-Za-z0-9_-]{1,20})",
     ]
     for pattern in nickname_patterns:
         match = re.search(pattern, text)
@@ -33,48 +32,58 @@ def extract_profile_updates(text: str) -> list[tuple[str, str]]:
             updates.append(("preferred_name", match.group("value").strip()))
             break
 
-    general_preference = re.search(r"(我平时|我通常|我一般)喜欢(?P<value>[^，。！？\n]{1,30})", text)
-    if general_preference:
-        updates.append(("general_preference", general_preference.group("value").strip()))
+    positive_preference = re.search(r"我喜欢(?P<value>[^，。！？\n]{1,30})", text)
+    if positive_preference:
+        updates.append(("general_preference", positive_preference.group("value").strip()))
 
-    boundary = re.search(r"(不要|别|不许)(?P<value>[^，。！？\n]{1,40})", text)
+    negative_preference = re.search(r"我不喜欢(?P<value>[^，。！？\n]{1,30})", text)
+    if negative_preference:
+        updates.append(("general_dislike", negative_preference.group("value").strip()))
+
+    boundary = re.search(r"(不要|别|请不要)(?P<value>[^，。！？\n]{1,40})", text)
     if boundary:
         updates.append(("boundary_preference", boundary.group("value").strip()))
 
-    return updates
+    stable_fact = re.search(r"我(?:一直|长期|以后都)(?P<value>[^，。！？\n]{1,40})", text)
+    if stable_fact:
+        updates.append(("long_term_fact", stable_fact.group("value").strip()))
+
+    deduped: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for item in updates:
+        if item not in seen:
+            seen.add(item)
+            deduped.append(item)
+    return deduped
 
 
 def extract_relationship_update(text: str) -> tuple[str, int, int, str] | None:
-    if "恋人" in text:
-        return ("lover", 3, 3, text.strip())
-    if "朋友" in text:
-        return ("friend", 2, 2, text.strip())
-    if "搭档" in text:
-        return ("partner", 2, 2, text.strip())
-    if "信任你" in text:
+    if "我信任你" in text:
         return ("trusted", 3, 2, text.strip())
-    if "不信任你" in text:
+    if "我们更亲近了" in text:
+        return ("closer", 3, 3, text.strip())
+    if "我更依赖你了" in text:
+        return ("dependent", 3, 3, text.strip())
+    if "我讨厌你" in text or "我不想理你" in text:
         return ("strained", 0, 0, text.strip())
     return None
 
 
 def choose_event_type(text: str) -> str:
-    if re.search(r"(明天|下次|以后|记得|答应|约好)", text):
+    if re.search(r"(以后|下次|答应我|约好了|记得提醒我)", text):
         return "commitment"
-    if re.search(r"(不要|别|不许|边界)", text):
+    if re.search(r"(不要|别|请不要)", text):
         return "boundary"
-    if re.search(r"(朋友|恋人|搭档|信任你|不信任你)", text):
+    if re.search(r"(我信任你|我们更亲近了|我更依赖你了|我讨厌你|我不想理你)", text):
         return "relationship"
-    if re.search(r"(喜欢你叫我|昵称是|平时喜欢|通常喜欢|一般喜欢)", text):
+    if re.search(r"(叫我|喜欢|不喜欢|一直|长期)", text):
         return "profile"
     return "event"
 
 
 def summarize_event(text: str) -> str:
     cleaned = " ".join(text.split())
-    if len(cleaned) <= 120:
-        return cleaned
-    return cleaned[:117] + "..."
+    return cleaned if len(cleaned) <= 120 else cleaned[:117] + "..."
 
 
 def main() -> None:

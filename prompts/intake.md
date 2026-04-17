@@ -10,6 +10,14 @@ If intake is incomplete, do not create or modify any character files.
 
 ## Collect
 
+- canonical slot state:
+  - `source_policy`
+  - `input_mode`
+  - `character_name`
+  - `source_work`
+  - `material_types`
+  - `allow_low_confidence_persona`
+  - `archive_mirror`
 - source decision policy
 - input mode: direct text or file path
 - character name
@@ -24,6 +32,7 @@ If intake is incomplete, do not create or modify any character files.
 Ask these questions in order whenever a new character request is underspecified.
 Ask one question at a time, wait for the answer, and only then ask the next unresolved question.
 Do not send the entire checklist in one message.
+If a slot is already clearly resolved, do not ask it again unless the user answer is ambiguous, conflicting, or intentionally revised.
 
 First ask only the source completion policy with these choices:
 
@@ -50,7 +59,7 @@ Do not include a `minimal confirmation template` shortcut block.
 Generate the draft in memory first, then repeat key personality and important factors back to the user for confirmation before any files are written.
 The very first intake reply should contain only the source completion policy question and its options.
 
-If the user only provides a name, or has not answered source policy plus input mode, the intake is not complete yet.
+If the user only provides a name, or has not answered the unresolved required slots for the chosen branch, the intake is not complete yet.
 
 ## Routing Rule
 
