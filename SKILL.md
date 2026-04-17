@@ -22,14 +22,15 @@ If intake is incomplete, you are forbidden to create, update, or modify any char
 The minimum intake bundle is:
 
 - source decision policy
-- input mode: direct text or file path
 - character name
-- source work
-- target use
+- source work, or an explicit decision that the character is fully original
 - source material types: official, plot, quotes, wiki, or user description
 - whether low-confidence persona inference is allowed when materials are thin
 
-If the user says only something like "create a Rem skill", do not jump straight to `canon`, `persona`, or `style_examples`. Ask the missing intake questions first, summarize the intake, repeat the key facts back for confirmation, and only then continue.
+If the user says only something like "create a Rem skill", do not jump straight to `canon`, `persona`, or `style_examples`.
+Do not dump the full questionnaire in one message.
+Ask exactly one unresolved intake question at a time, wait for the user's answer, then ask the next needed question.
+Build the draft in memory first, then summarize the generated key factors for confirmation before writing files.
 
 ## Source Decision Policy
 
@@ -38,13 +39,32 @@ Before any generation work, ask which source completion policy is allowed:
 1. only user-provided information
 2. official material plus wiki material
 3. official material plus user material
+4. quick generate from official-style defaults
 
 Then ask how the directly provided material will arrive:
 
 1. direct text entered in chat or CLI
 2. file paths that should be read first
 
-If the user has not answered both source policy and input mode, the hard intake gate is still incomplete.
+Ask these in sequence:
+
+1. ask only the source completion policy
+2. if the user chooses only user-provided information or official plus user material, ask only the input mode
+3. if the user chooses quick generate, skip the remaining intake questions
+4. if the user chooses direct text, ask them to paste the source text
+5. if the user chooses file paths, ask them for the paths and read those files first
+6. if the character name was already in the user's request, ask only for name confirmation instead of asking for the name again
+7. source work may be blank for a fully original character
+8. if public completion is allowed and source work exists, ask for search scope: small, medium, or large
+9. ask whether personality supplementation is allowed when the materials are thin
+
+The first intake reply for an underspecified request should contain only question 1 plus its options.
+Do not include question 2 or later questions in that first reply.
+
+Do not ask for `target use` during the hard intake gate unless the user explicitly asks to customize it.
+Use the default target use `openclaw roleplay conversation` when no explicit target use is supplied.
+
+If the current branch still requires input mode and the user has not answered it yet, the hard intake gate is still incomplete.
 
 ## Core Workflow
 

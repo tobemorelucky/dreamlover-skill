@@ -41,6 +41,8 @@
 - `skill_writer.py` runs a post-write lint pass by default and returns lint results alongside package metadata
 - `skill_writer.py --interactive` performs intake-first prompting and writes the intake bundle into `meta.json` and `sources/normalized.json`
 - the hard intake gate must complete and be confirmed before any character files are written
+- the hard intake gate asks one unresolved question at a time instead of sending the entire checklist at once
+- `target_use` defaults when omitted and is not a required intake question
 - child skills use conditional memory gates instead of reading or writing memory every turn
 - local runtime memory lives under `./.dreamlover-data/` and must not be written into `SKILL.md`
 - generated child `SKILL.md` files use OpenClaw-compatible front matter and declare `python3` when memory scripts are available

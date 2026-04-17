@@ -44,6 +44,7 @@ META_FIELDS = [
     "allow_low_confidence_persona",
     "source_decision_policy",
     "input_mode",
+    "search_scope",
     "source_paths",
     "layout_version",
     "created_at",

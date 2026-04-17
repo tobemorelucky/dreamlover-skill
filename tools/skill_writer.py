@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import json
@@ -33,47 +33,61 @@ DEFAULT_ARCHIVE_ROOT = Path("characters")
 DEFAULT_SOURCE_TYPES = ["user"]
 DEFAULT_SOURCE_DECISION_POLICY = "user_only"
 DEFAULT_INPUT_MODE = "direct_text"
+DEFAULT_SEARCH_SCOPE = "none"
 SOURCE_DECISION_POLICIES = {
     "1": "user_only",
     "2": "official_wiki_only",
     "3": "official_plus_user",
+    "4": "official_quick",
 }
 SOURCE_DECISION_LABELS = {
-    "user_only": "仅用用户提供的信息",
-    "official_wiki_only": "仅用官方资料+wiki资料",
-    "official_plus_user": "官方资料+用户资料",
+    "user_only": "Only use the information provided by the user",
+    "official_wiki_only": "Official sources plus wiki sources",
+    "official_plus_user": "Official sources plus user-provided information",
+    "official_quick": "Quick generate from official-style defaults",
 }
 INPUT_MODES = {
     "1": "direct_text",
     "2": "file_path",
 }
+SEARCH_SCOPES = {
+    "1": "small",
+    "2": "medium",
+    "3": "large",
+}
 INPUT_MODE_LABELS = {
-    "direct_text": "直接输送信息",
-    "file_path": "文件路径",
+    "direct_text": "Direct text",
+    "file_path": "File path",
+}
+SEARCH_SCOPE_LABELS = {
+    "none": "No public search",
+    "small": "Small search scope",
+    "medium": "Medium search scope",
+    "large": "Large search scope",
 }
 SOURCE_TYPE_SYNONYMS = {
     "official": "official",
     "official-setting": "official",
     "official_profile": "official",
-    "官方": "official",
-    "官方设定": "official",
+    "瀹樻柟": "official",
+    "瀹樻柟璁惧畾": "official",
     "plot": "plot",
     "plot-summary": "plot",
     "story": "plot",
-    "剧情": "plot",
-    "剧情摘要": "plot",
+    "鍓ф儏": "plot",
+    "鍓ф儏鎽樿": "plot",
     "quotes": "quotes",
     "quote": "quotes",
     "dialogue": "quotes",
-    "台词": "quotes",
-    "台词摘录": "quotes",
+    "鍙拌瘝": "quotes",
+    "鍙拌瘝鎽樺綍": "quotes",
     "wiki": "wiki",
-    "百科": "wiki",
+    "鐧剧": "wiki",
     "user": "user",
     "manual": "user",
     "user-description": "user",
-    "用户": "user",
-    "用户描述": "user",
+    "鐢ㄦ埛": "user",
+    "鐢ㄦ埛鎻忚堪": "user",
 }
 SECTION_PLACEHOLDERS = {
     "## Basic Identity": "- No confirmed identity facts recorded yet.",
@@ -277,9 +291,9 @@ def parse_bool_flag(value: str | None, default: bool = False) -> bool:
     if value is None:
         return default
     normalized = value.strip().lower()
-    if normalized in {"1", "true", "t", "yes", "y", "是"}:
+    if normalized in {"1", "true", "t", "yes", "y"}:
         return True
-    if normalized in {"0", "false", "f", "no", "n", "否"}:
+    if normalized in {"0", "false", "f", "no", "n"}:
         return False
     raise ValueError(f"Unsupported boolean value: {value}")
 
@@ -546,6 +560,7 @@ def build_normalized_payload(
             "source_types": intake["source_types"],
             "source_decision_policy": intake["source_decision_policy"],
             "input_mode": intake["input_mode"],
+            "search_scope": intake.get("search_scope", DEFAULT_SEARCH_SCOPE),
             "source_paths": source_paths,
         },
         "intake": {
@@ -556,6 +571,7 @@ def build_normalized_payload(
             "allow_low_confidence_persona": intake["allow_low_confidence_persona"],
             "source_decision_policy": intake["source_decision_policy"],
             "input_mode": intake["input_mode"],
+            "search_scope": intake.get("search_scope", DEFAULT_SEARCH_SCOPE),
             "source_paths": source_paths,
             "confirmed": intake["confirmed"],
         },
@@ -697,78 +713,109 @@ def list_packages(root: Path, scope: str) -> list[dict]:
 
 def interactive_intake(existing: dict) -> dict:
     print("Interactive intake mode for character skill generation.")
+
     source_decision_policy = prompt_choice(
-        "1. 这个角色是否允许使用可搜索到的公开资料补全？",
+        "Choose a source completion policy.",
         SOURCE_DECISION_POLICIES,
         next(
             (key for key, value in SOURCE_DECISION_POLICIES.items() if value == existing.get("source_decision_policy")),
             "1",
         ),
-        SOURCE_DECISION_LABELS,
+        {
+            "user_only": "Only use the information provided by the user",
+            "official_wiki_only": "Official sources plus wiki sources",
+            "official_plus_user": "Official sources plus user-provided information",
+            "official_quick": "Quick generate from official-style defaults",
+        },
     )
 
-    input_mode = prompt_choice(
-        "2. 请选择直接提供的文件信息或者文件路径",
-        INPUT_MODES,
-        next(
-            (key for key, value in INPUT_MODES.items() if value == existing.get("input_mode")),
-            "1",
-        ),
-        INPUT_MODE_LABELS,
-    )
-
-    character_name = prompt_required("Character name", existing.get("character_name") or None)
-    source_work = prompt_required("Source work", existing.get("source_work") or None)
-    target_use = prompt_required("Target use", existing.get("target_use") or "roleplay conversation")
-    source_type_default = ",".join(existing.get("source_types", DEFAULT_SOURCE_TYPES))
-    source_types = normalize_source_types(
-        prompt_required(
-            "Source material types (official, plot, quotes, wiki, user; comma separated)",
-            source_type_default,
+    input_mode = DEFAULT_INPUT_MODE
+    if source_decision_policy in {"user_only", "official_plus_user"}:
+        input_mode = prompt_choice(
+            "Choose how you will provide the source material.",
+            INPUT_MODES,
+            next(
+                (key for key, value in INPUT_MODES.items() if value == existing.get("input_mode")),
+                "1",
+            ),
+            {
+                "direct_text": "Direct text",
+                "file_path": "File path",
+            },
         )
-    )
+
+    requested_name = existing.get("character_name") or existing.get("requested_character_name") or ""
+    if requested_name:
+        if prompt_yes_no(f'Use "{requested_name}" as the character name', True):
+            character_name = requested_name
+        else:
+            character_name = prompt_required("Character name")
+    else:
+        character_name = prompt_required("Character name")
+
+    if source_decision_policy == "official_quick":
+        effective_slug = slugify(character_name)
+        return {
+            "slug": effective_slug,
+            "character_name": character_name,
+            "source_work": existing.get("source_work", ""),
+            "target_use": existing.get("target_use") or "openclaw roleplay conversation",
+            "source_types": normalize_source_types("official"),
+            "allow_low_confidence_persona": existing.get("allow_low_confidence_persona", False),
+            "source_decision_policy": source_decision_policy,
+            "input_mode": DEFAULT_INPUT_MODE,
+            "search_scope": "medium",
+            "source_paths": [],
+            "raw_material_notes": "",
+            "canon_notes": "",
+            "persona_notes": "",
+            "style_notes": "",
+            "confirmed": False,
+        }
+
+    source_work = existing.get("source_work", "")
+    if source_decision_policy != "official_quick":
+        source_work = input("Source work (leave blank if this is a fully original character): ").strip()
+
+    search_scope = DEFAULT_SEARCH_SCOPE
+    if source_decision_policy in {"official_wiki_only", "official_plus_user", "official_quick"} and source_work:
+        search_scope = prompt_choice(
+            "Choose the public search scope.",
+            SEARCH_SCOPES,
+            "2",
+            {
+                "small": "Small",
+                "medium": "Medium",
+                "large": "Large",
+            },
+        )
+
+    source_paths: list[str] = []
+    raw_material_notes = ""
+    if source_decision_policy != "official_quick":
+        if input_mode == "file_path":
+            raw_path_block = prompt_multiline("Provide one or more file paths for the source material.")
+            source_paths, raw_material_notes = read_source_paths(raw_path_block)
+        elif input_mode == "direct_text":
+            raw_material_notes = prompt_multiline("Paste the source text or notes you want the generator to use.")
+
+    if source_decision_policy == "user_only":
+        source_types = normalize_source_types("user")
+    elif source_decision_policy == "official_wiki_only":
+        source_types = normalize_source_types("official,wiki")
+    else:
+        source_types = normalize_source_types("official,user")
+
     allow_low_confidence = prompt_yes_no(
-        "Allow low-confidence persona inference when materials are limited",
+        "If the materials are not enough, may I add a little personality supplementation for you",
         existing.get("allow_low_confidence_persona", False),
     )
 
-    source_paths: list[str] = []
-    if input_mode == "file_path":
-        raw_path_block = prompt_multiline(
-            "Provide one or more file paths that contain the source material."
-        )
-        source_paths, raw_material_notes = read_source_paths(raw_path_block)
-    else:
-        raw_material_notes = prompt_multiline(
-            "Paste a short raw-material summary or any notes you already have."
-        )
-
-    canon_notes = prompt_multiline(
-        "Enter canon notes with optional prefixes identity:/attribute:/event:/relation:/official:"
-    )
-    persona_notes = prompt_multiline(
-        "Enter persona notes with optional prefixes behavior:/emotion:/interaction:/progression:/boundary:"
-    )
-    style_notes = prompt_multiline(
-        "Enter style notes with optional prefixes address:/rhythm:/tic:/example:"
-    )
-
+    canon_notes = ""
+    persona_notes = ""
+    style_notes = ""
     effective_slug = slugify(character_name)
-    summary_lines = [
-        f"- Character: {character_name}",
-        f"- Slug: {effective_slug}",
-        f"- Source work: {source_work}",
-        f"- Target use: {target_use}",
-        f"- Source decision policy: {SOURCE_DECISION_LABELS[source_decision_policy]}",
-        f"- Input mode: {INPUT_MODE_LABELS[input_mode]}",
-        f"- Source types: {', '.join(source_types)}",
-        f"- Allow low-confidence persona: {'yes' if allow_low_confidence else 'no'}",
-    ]
-    if source_paths:
-        summary_lines.append(f"- Source paths: {', '.join(source_paths)}")
-    print("Confirm the intake summary before any files are written:")
-    print("\n".join(summary_lines))
-    confirmed = prompt_yes_no("Confirm this intake summary and allow file generation", False)
+    target_use = existing.get("target_use") or "openclaw roleplay conversation"
 
     return {
         "slug": effective_slug,
@@ -779,31 +826,48 @@ def interactive_intake(existing: dict) -> dict:
         "allow_low_confidence_persona": allow_low_confidence,
         "source_decision_policy": source_decision_policy,
         "input_mode": input_mode,
+        "search_scope": search_scope,
         "source_paths": source_paths,
         "raw_material_notes": raw_material_notes,
         "canon_notes": canon_notes,
         "persona_notes": persona_notes,
         "style_notes": style_notes,
-        "confirmed": confirmed,
+        "confirmed": False,
     }
+
+
+def build_generated_confirmation_summary(
+    intake: dict,
+    canon_text: str,
+    persona_text: str,
+    style_text: str,
+) -> list[str]:
+    persona_behavior = choose_section_body(
+        parse_section_segments(persona_text, PERSONA_HEADERS)["## Behavior Patterns"],
+        SECTION_PLACEHOLDERS["## Behavior Patterns"],
+    ).splitlines()[0].lstrip("- ").strip()
+    style_line = choose_section_body(
+        parse_section_segments(style_text, STYLE_HEADERS)["## Short Example Lines"],
+        SECTION_PLACEHOLDERS["## Short Example Lines"],
+    ).splitlines()[0].lstrip("- ").strip()
+    summary_lines = [
+        f"- Character: {intake['character_name']}",
+        f"- Slug: {intake['slug']}",
+        f"- Source policy: {SOURCE_DECISION_LABELS.get(intake['source_decision_policy'], intake['source_decision_policy'])}",
+        f"- Input mode: {INPUT_MODE_LABELS.get(intake['input_mode'], intake['input_mode'])}",
+        f"- Source work: {intake['source_work'] or 'original character / not provided'}",
+        f"- Search scope: {SEARCH_SCOPE_LABELS.get(intake.get('search_scope', DEFAULT_SEARCH_SCOPE), intake.get('search_scope', DEFAULT_SEARCH_SCOPE))}",
+        f"- Low-confidence persona: {'yes' if intake['allow_low_confidence_persona'] else 'no'}",
+        f"- Persona preview: {persona_behavior}",
+        f"- Style preview: {style_line}",
+    ]
+    return summary_lines
 
 
 def build_interactive_outputs(existing: dict, forced_slug: str | None) -> tuple[str, str, str, dict, str, dict]:
     intake = interactive_intake(existing)
     if forced_slug:
         intake["slug"] = forced_slug
-    if not intake["confirmed"]:
-        raise SystemExit(
-            json.dumps(
-                {
-                    "status": "aborted",
-                    "reason": "intake_not_confirmed",
-                    "message": "Hard intake gate blocked generation before any files were written.",
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
-        )
 
     updated_at = utc_now()
     canon_blocks = parse_prefixed_notes(intake["canon_notes"], CANON_HEADERS, CANON_PREFIXES, "## Basic Identity")
@@ -841,6 +905,21 @@ def build_interactive_outputs(existing: dict, forced_slug: str | None) -> tuple[
         intake["target_use"],
         intake["allow_low_confidence_persona"],
     )
+    print("Review the generated draft summary before any files are written:")
+    print("\n".join(build_generated_confirmation_summary(intake, canon_text, persona_text, style_text)))
+    intake["confirmed"] = prompt_yes_no("Confirm this generated draft and allow file creation", False)
+    if not intake["confirmed"]:
+        raise SystemExit(
+            json.dumps(
+                {
+                    "status": "aborted",
+                    "reason": "intake_not_confirmed",
+                    "message": "Hard intake gate blocked generation before any files were written.",
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
     return canon_text, persona_text, style_text, normalized_payload, skill_text, intake
 
 
@@ -892,6 +971,10 @@ def main() -> None:
     if archive_dir is not None:
         meta_candidates.append(archive_dir / "meta.json")
     existing = load_existing_meta(meta_candidates)
+    if args.name:
+        existing.setdefault("requested_character_name", args.name)
+    elif args.slug:
+        existing.setdefault("requested_character_name", args.slug)
 
     if args.interactive:
         canon_text, persona_text, style_text, normalized_payload, skill_text, intake = build_interactive_outputs(existing, args.slug)
@@ -928,6 +1011,7 @@ def main() -> None:
                 "source_types": source_types,
                 "source_decision_policy": source_decision_policy,
                 "input_mode": input_mode,
+                "search_scope": existing.get("search_scope", DEFAULT_SEARCH_SCOPE),
                 "source_paths": existing.get("source_paths", []),
             },
             "intake": {
@@ -939,6 +1023,7 @@ def main() -> None:
                 "allow_low_confidence_persona": allow_low_confidence,
                 "source_decision_policy": source_decision_policy,
                 "input_mode": input_mode,
+                "search_scope": existing.get("search_scope", DEFAULT_SEARCH_SCOPE),
                 "source_paths": existing.get("source_paths", []),
                 "confirmed": True,
             },
@@ -961,6 +1046,7 @@ def main() -> None:
         "allow_low_confidence_persona": allow_low_confidence,
         "source_decision_policy": normalized_payload["intake"]["source_decision_policy"],
         "input_mode": normalized_payload["intake"]["input_mode"],
+        "search_scope": normalized_payload["intake"].get("search_scope", DEFAULT_SEARCH_SCOPE),
         "source_paths": normalized_payload["intake"].get("source_paths", []),
         "layout_version": "0.6",
         "created_at": created_at,
@@ -988,3 +1074,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+

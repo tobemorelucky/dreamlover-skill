@@ -83,6 +83,9 @@ Help me create a Rem character skill
 ```
 
 The generator should ask intake questions before writing anything.
+It should ask one unresolved question at a time instead of dumping the whole checklist at once.
+It should not ask for target use unless the user explicitly wants to customize it.
+If the user chooses quick generate, it should skip the remaining intake questions and move to a generated draft preview before any files are written.
 
 ### 2. CLI Generation
 

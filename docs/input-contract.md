@@ -20,15 +20,18 @@ Each import should include:
 For intake-first generation, the minimum user-provided request bundle should include:
 
 - source decision policy
-- input mode: direct text or file path
 - character name
-- source work
-- target use
-- available source material types
+- source work or an explicit decision that the character is fully original
 - whether low-confidence persona inference is allowed when evidence is thin
 
 If these fields are incomplete, the generator should ask follow-up intake questions before creating the child skill.
+The generator should ask one unresolved intake question at a time instead of dumping the entire form in one message.
 No character files should be created or modified before the user confirms the intake summary.
+
+`target_use` is no longer a hard intake requirement.
+If the user does not specify it, default to `openclaw roleplay conversation`.
+`input_mode` is only required when the source decision policy includes user-provided materials.
+If the source decision policy is `official_quick`, the generator should skip the rest of the intake questions and move to a generated draft preview before final confirmation.
 
 ## Normalized Shape
 

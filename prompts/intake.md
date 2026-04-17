@@ -14,7 +14,6 @@ If intake is incomplete, do not create or modify any character files.
 - input mode: direct text or file path
 - character name
 - source work
-- target use
 - request type: create, update, correct, list
 - source types provided: official, plot, quotes, wiki, user
 - whether low-confidence persona inference is allowed
@@ -22,17 +21,34 @@ If intake is incomplete, do not create or modify any character files.
 
 ## Minimum Intake Questions
 
-Ask these questions in order whenever a new character request is underspecified:
+Ask these questions in order whenever a new character request is underspecified.
+Ask one question at a time, wait for the answer, and only then ask the next unresolved question.
+Do not send the entire checklist in one message.
 
-1. Is this character allowed to use searchable public material for completion?
-2. Which source policy applies: only user-provided information, official plus wiki, or official plus user material?
-3. Will the directly provided material arrive as direct text or as file paths?
-4. What is the character name?
-5. What is the source work?
-6. What is the target use for this skill?
-7. Which source material types do you have right now: official setting, plot summary, quote excerpts, wiki summary, or user description?
-8. If the source material stays incomplete, may the system use low-confidence persona inference, or should it stay fully conservative?
-9. Repeat the key intake facts back to the user and ask for confirmation before generation.
+First ask only the source completion policy with these choices:
+
+- only user information
+- official plus wiki
+- official plus user information
+- quick generate from official-style defaults
+
+Branching rules:
+
+- if the user chooses quick generate, skip all remaining intake questions and move straight to a generated draft preview
+- if the user chooses only user information or official plus user information, ask how the user will provide materials: direct text or file paths
+- if the user chooses official plus wiki, do not ask input mode
+- if the user chooses direct text, ask them to paste the source text or notes
+- if the user chooses file paths, ask them to provide the file paths and read those first
+- do not ask for the character name again if it was already present in the original request; instead ask for a direct confirmation like `Use <name> as the character name?`
+- source work may be blank; blank means the character can be fully original and no public lookup should be assumed
+- if public-material completion is allowed and source work exists, ask for public search scope: small, medium, or large
+- ask whether low-confidence persona supplementation is allowed using the wording `If the materials are not enough, may I add a little personality supplementation for you`
+
+Do not ask for target use during the hard intake gate unless the user explicitly wants to customize it.
+When target use is not provided, default it to `openclaw roleplay conversation`.
+Do not include a `minimal confirmation template` shortcut block.
+Generate the draft in memory first, then repeat key personality and important factors back to the user for confirmation before any files are written.
+The very first intake reply should contain only the source completion policy question and its options.
 
 If the user only provides a name, or has not answered source policy plus input mode, the intake is not complete yet.
 
@@ -50,7 +66,6 @@ Produce a short intake summary with:
 
 - character
 - source work
-- target use
 - request type
 - source bundle summary
 - low-confidence persona policy

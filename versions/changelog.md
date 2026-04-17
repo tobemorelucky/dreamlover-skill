@@ -6,6 +6,8 @@
 - added OpenClaw Python requirement metadata for child skills that use conditional memory scripts
 - kept conditional memory routing while adding explicit no-memory fallback when `python3` is unavailable
 - updated README and contracts to distinguish the generator skill from OpenClaw-loadable child skills
+- changed hard intake from checklist-style prompting to one-question-at-a-time branching
+- removed `target use` from the required intake questions and default it when omitted
 
 ## v0.5
 
