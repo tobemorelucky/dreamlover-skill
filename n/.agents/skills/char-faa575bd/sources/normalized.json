@@ -1,0 +1,38 @@
+{
+  "schema_version": "0.4",
+  "source": {
+    "source_type": "interactive-intake",
+    "input_path": "",
+    "normalized_at": "2026-04-17T12:42:55Z",
+    "source_types": [
+      "official"
+    ],
+    "source_decision_policy": "official_quick",
+    "input_mode": "direct_text",
+    "search_scope": "medium",
+    "archive_mirror": true,
+    "source_paths": []
+  },
+  "intake": {
+    "character_name": "测试角色",
+    "source_work": "",
+    "target_use": "角色扮演对话",
+    "source_types": [
+      "official"
+    ],
+    "allow_low_confidence_persona": false,
+    "source_decision_policy": "official_quick",
+    "input_mode": "direct_text",
+    "search_scope": "medium",
+    "archive_mirror": true,
+    "source_paths": [],
+    "confirmed": false,
+    "slug": "char-faa575bd"
+  },
+  "entries": [],
+  "exports": {
+    "codex": ".tmp-chinese-intake-2/char-faa575bd",
+    "openclaw": "n\\.agents\\skills\\char-faa575bd"
+  },
+  "canonical_source": "characters/char-faa575bd"
+}

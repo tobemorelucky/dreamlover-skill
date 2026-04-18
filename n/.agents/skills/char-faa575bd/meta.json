@@ -1,0 +1,31 @@
+{
+  "slug": "char-faa575bd",
+  "character_name": "测试角色",
+  "source_work": "",
+  "target_use": "角色扮演对话",
+  "source_types": [
+    "official"
+  ],
+  "allow_low_confidence_persona": false,
+  "source_decision_policy": "official_quick",
+  "input_mode": "direct_text",
+  "search_scope": "medium",
+  "archive_mirror": true,
+  "source_paths": [],
+  "layout_version": "0.7",
+  "created_at": "2026-04-17T12:42:55Z",
+  "updated_at": "2026-04-17T12:42:55Z",
+  "primary_path": ".tmp-chinese-intake-2/char-faa575bd",
+  "archive_path": "characters/char-faa575bd",
+  "install_scope": "codex",
+  "canonical_source": "characters/char-faa575bd",
+  "export_targets": {
+    "codex": ".tmp-chinese-intake-2/char-faa575bd",
+    "openclaw": "n\\.agents\\skills\\char-faa575bd"
+  },
+  "generated_for": [
+    "codex",
+    "openclaw"
+  ],
+  "openclaw_exported_at": "2026-04-17T12:42:55Z"
+}

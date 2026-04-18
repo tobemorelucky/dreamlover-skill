@@ -41,10 +41,10 @@ SOURCE_DECISION_POLICIES = {
     "4": "official_quick",
 }
 SOURCE_DECISION_LABELS = {
-    "user_only": "Only use the information provided by the user",
-    "official_wiki_only": "Official sources plus wiki sources",
-    "official_plus_user": "Official sources plus user-provided information",
-    "official_quick": "Quick generate from official-style defaults",
+    "user_only": "仅使用你提供的信息",
+    "official_wiki_only": "官方资料 + wiki 资料",
+    "official_plus_user": "官方资料 + 你提供的信息",
+    "official_quick": "快速生成",
 }
 INPUT_MODES = {
     "1": "direct_text",
@@ -56,14 +56,14 @@ SEARCH_SCOPES = {
     "3": "large",
 }
 INPUT_MODE_LABELS = {
-    "direct_text": "Direct text",
-    "file_path": "File path",
+    "direct_text": "直接贴文本",
+    "file_path": "文件路径",
 }
 SEARCH_SCOPE_LABELS = {
-    "none": "No public search",
-    "small": "Small search scope",
-    "medium": "Medium search scope",
-    "large": "Large search scope",
+    "none": "不联网补全",
+    "small": "小范围补全",
+    "medium": "中范围补全",
+    "large": "大范围补全",
 }
 CANONICAL_SLOTS = [
     "source_policy",
@@ -154,20 +154,20 @@ SOURCE_TYPE_SYNONYMS = {
     "用户描述": "user",
 }
 SECTION_PLACEHOLDERS = {
-    "## Basic Identity": "- No confirmed identity facts recorded yet.",
-    "## Setting Attributes": "- No confirmed setting attributes recorded yet.",
-    "## Key Plot Events": "- No confirmed plot events recorded yet.",
-    "## Confirmed Relationships": "- No confirmed relationships recorded yet.",
-    "## Official Statements And Notes": "- No official statements recorded yet.",
-    "## Behavior Patterns": "- No summarized behavior patterns recorded yet.",
-    "## Emotional Tendencies": "- No summarized emotional tendencies recorded yet.",
-    "## Interaction Style": "- No summarized interaction strategy recorded yet.",
-    "## Relationship Progression": "- No summarized relationship progression recorded yet.",
-    "## Boundaries And Preferences": "- No summarized boundaries or preferences recorded yet.",
-    "## Address Patterns": "- No style address patterns recorded yet.",
-    "## Rhythm And Sentence Shape": "- No style rhythm notes recorded yet.",
-    "## Verbal Tics": "- No style verbal tics recorded yet.",
-    "## Short Example Lines": "- No short example lines recorded yet.",
+    "## Basic Identity": "- 暂无已确认的基础身份信息。",
+    "## Setting Attributes": "- 暂无已确认的设定属性。",
+    "## Key Plot Events": "- 暂无已确认的关键剧情事件。",
+    "## Confirmed Relationships": "- 暂无已确认的角色关系。",
+    "## Official Statements And Notes": "- 暂无已确认的官方口径或补充备注。",
+    "## Behavior Patterns": "- 暂无已归纳的行为模式。",
+    "## Emotional Tendencies": "- 暂无已归纳的情绪反应倾向。",
+    "## Interaction Style": "- 暂无已归纳的互动方式。",
+    "## Relationship Progression": "- 暂无已归纳的关系推进逻辑。",
+    "## Boundaries And Preferences": "- 暂无已归纳的禁忌或偏好。",
+    "## Address Patterns": "- 暂无已整理的称呼方式。",
+    "## Rhythm And Sentence Shape": "- 暂无已整理的句式与节奏。",
+    "## Verbal Tics": "- 暂无已整理的口头习惯。",
+    "## Short Example Lines": "- 暂无已整理的短句样例。",
 }
 CANON_PREFIXES = {
     "identity": "## Basic Identity",
@@ -401,11 +401,11 @@ def prompt_required(prompt: str, default: str | None = None) -> str:
             return value
         if shown_default is not None:
             return shown_default
-        print("This field is required.")
+        print("这一项需要填写。")
 
 
 def prompt_yes_no(prompt: str, default: bool = False) -> bool:
-    default_label = "Y/n" if default else "y/N"
+    default_label = "默认是" if default else "默认否"
     while True:
         value = input(f"{prompt} [{default_label}]: ").strip()
         if not value:
@@ -413,7 +413,7 @@ def prompt_yes_no(prompt: str, default: bool = False) -> bool:
         try:
             return parse_bool_flag(value)
         except ValueError:
-            print("Please answer yes or no.")
+            print("请回答“是”或“否”。")
 
 
 def prompt_choice(
@@ -428,8 +428,8 @@ def prompt_choice(
         print(prompt)
         for key, value in choices.items():
             label = labels.get(value, value) if labels else value
-            print(f"{key}. {label}")
-        value = input(f"Choose one{default_suffix}: ").strip()
+            print(f"{key}）{label}")
+        value = input(f"请选择{default_suffix}: ").strip()
         if not value and default_key:
             value = default_key
         normalized_value = value.strip().lower()
@@ -437,11 +437,11 @@ def prompt_choice(
             return aliases[normalized_value]
         if value in choices:
             return choices[value]
-        print("Please choose a valid option.")
+        print("请选择有效选项。")
 
 
 def prompt_multiline(prompt: str) -> str:
-    print(f"{prompt} Finish with a line containing only {INTERACTIVE_SENTINEL}.")
+    print(f"{prompt} 输入完成后，单独输入一行 {INTERACTIVE_SENTINEL} 结束。")
     lines: list[str] = []
     while True:
         line = input()
@@ -553,36 +553,36 @@ def build_minimal_persona_defaults(target_use: str, allow_low_confidence: bool) 
     if allow_low_confidence:
         return {
             "## Behavior Patterns": [
-                f"Based on limited intake material, keep the roleplay aligned with the user's stated goal: {target_use}."
+                f"当前资料较少时，优先让角色表现服务于用户当前目标：{target_use}。"
             ],
             "## Emotional Tendencies": [
-                "When evidence is thin, express emotions conservatively instead of inventing strong unverified reactions."
+                "当证据不足时，情绪表达应当克制，不要擅自补出强烈而无依据的反应。"
             ],
             "## Interaction Style": [
-                "Prefer clear, supportive, character-facing replies and mark uncertain traits through restraint rather than new canon claims."
+                "优先使用清晰、贴近角色的回应方式；遇到不确定特质时，用收敛表达代替新增设定。"
             ],
             "## Relationship Progression": [
-                "Let familiarity grow gradually from the ongoing conversation instead of assuming deep trust immediately."
+                "关系应随对话逐步推进，不要一开始就默认已经建立很深的信赖。"
             ],
             "## Boundaries And Preferences": [
-                "Do not present speculative traits as confirmed facts, even when low-confidence persona inference is allowed."
+                "即使允许低置信度人格补充，也不能把推断包装成已确认事实。"
             ],
         }
     return {
         "## Behavior Patterns": [
-            "Insufficient persona evidence is currently available, so keep behavior restrained and avoid strong unverified traits."
+            "当前缺少足够的人格资料，因此行为表现应当克制，避免使用强烈但无依据的特征。"
         ],
         "## Emotional Tendencies": [
-            "Default to mild, controlled emotional expression until more source-backed characterization is added."
+            "在补充更多资料前，默认使用温和、受控的情绪表达。"
         ],
         "## Interaction Style": [
-            "Answer in a neutral, steady roleplay voice and avoid claiming inner motives that were not provided."
+            "先以稳定、自然的角色口吻回应，不要擅自补出未提供的内心动机。"
         ],
         "## Relationship Progression": [
-            "Do not force closeness or hostility without explicit support from later materials or user guidance."
+            "没有后续资料或用户明确指引时，不要强行推进亲密或敌对关系。"
         ],
         "## Boundaries And Preferences": [
-            "If a response depends on missing characterization, stay conservative rather than fabricating details."
+            "当回答依赖缺失的人格信息时，宁可保守处理，也不要编造细节。"
         ],
     }
 
@@ -590,16 +590,16 @@ def build_minimal_persona_defaults(target_use: str, allow_low_confidence: bool) 
 def build_minimal_style_defaults(target_use: str) -> dict[str, list[str]]:
     return {
         "## Address Patterns": [
-            "Use direct address suitable for the current conversation and avoid overcommitting to honorific habits not yet supported."
+            "先使用适合当前对话的自然称呼，不要过早锁定没有依据的敬语习惯。"
         ],
         "## Rhythm And Sentence Shape": [
-            f"Keep sentence rhythm stable and readable for the stated use case: {target_use}."
+            f"句式和节奏以稳定、自然、便于对话为主，服务当前目标：{target_use}。"
         ],
         "## Verbal Tics": [
-            "Avoid adding signature catchphrases unless they were explicitly provided in the intake."
+            "除非资料里明确提供，否则不要擅自添加口头禅。"
         ],
         "## Short Example Lines": [
-            "I am here, so tell me what you need.",
+            "我在这里，你可以直接和我说。",
         ],
     }
 
@@ -608,16 +608,16 @@ def build_minimal_canon_defaults() -> dict[str, list[str]]:
     return {
         "## Basic Identity": [],
         "## Setting Attributes": [
-            "No additional confirmed setting attributes were supplied in the current intake bundle."
+            "当前录入资料中没有更多已确认的设定属性。"
         ],
         "## Key Plot Events": [
-            "No explicit plot events were supplied in the current intake bundle."
+            "当前录入资料中没有更多明确剧情事件。"
         ],
         "## Confirmed Relationships": [
-            "No explicit relationships were supplied in the current intake bundle."
+            "当前录入资料中没有更多明确关系。"
         ],
         "## Official Statements And Notes": [
-            "No official statements were supplied in the current intake bundle."
+            "当前录入资料中没有更多明确官方口径或补充备注。"
         ],
     }
 
@@ -627,9 +627,9 @@ def build_canon_markdown(name: str, source_work: str, note_blocks: dict[str, lis
     sections = merge_section_defaults(sections, build_minimal_canon_defaults())
     identity = sections["## Basic Identity"]
     if name:
-        identity.insert(0, f"Name: {name}")
+        identity.insert(0, f"角色名：{name}")
     if source_work:
-        identity.append(f"Source Work: {source_work}")
+        identity.append(f"来源作品：{source_work}")
     return render_markdown_from_sections(CANON_HEADERS, sections)
 
 
@@ -874,7 +874,7 @@ def list_packages(root: Path, scope: str) -> list[dict]:
 
 
 def interactive_intake(existing: dict) -> dict:
-    print("Interactive intake mode for character skill generation.")
+    print("进入角色创建 intake 流程。")
     slot_state = build_slot_state(existing)
     slot_state["archive_mirror"] = existing.get(
         "archive_mirror",
@@ -883,7 +883,7 @@ def interactive_intake(existing: dict) -> dict:
 
     if slot_state["source_policy"] is None:
         slot_state["source_policy"] = prompt_choice(
-            "Choose a source completion policy.",
+            "请选择资料补全策略。",
             SOURCE_DECISION_POLICIES,
             "1",
             SOURCE_DECISION_LABELS,
@@ -893,12 +893,12 @@ def interactive_intake(existing: dict) -> dict:
 
     requested_name = existing.get("requested_character_name") or existing.get("character_name") or ""
     if slot_state["character_name"] is None and requested_name:
-        if prompt_yes_no(f'Use "{requested_name}" as the character name', True):
+        if prompt_yes_no(f'是否将“{requested_name}”作为角色名', True):
             slot_state["character_name"] = requested_name
         else:
-            slot_state["character_name"] = prompt_required("Character name")
+            slot_state["character_name"] = prompt_required("请输入角色名")
     elif slot_state["character_name"] is None:
-        slot_state["character_name"] = prompt_required("Character name")
+        slot_state["character_name"] = prompt_required("请输入角色名")
     character_name = slot_state["character_name"]
 
     if source_decision_policy == "official_quick":
@@ -907,7 +907,7 @@ def interactive_intake(existing: dict) -> dict:
             "slug": effective_slug,
             "character_name": character_name,
             "source_work": existing.get("source_work", ""),
-            "target_use": existing.get("target_use") or "openclaw roleplay conversation",
+            "target_use": existing.get("target_use") or "角色扮演对话",
             "source_types": infer_material_types_from_policy(source_decision_policy),
             "allow_low_confidence_persona": existing.get("allow_low_confidence_persona", False),
             "source_decision_policy": source_decision_policy,
@@ -924,7 +924,7 @@ def interactive_intake(existing: dict) -> dict:
 
     if source_decision_policy in {"user_only", "official_plus_user"} and slot_state["input_mode"] is None:
         slot_state["input_mode"] = prompt_choice(
-            "Choose how you will provide the source material.",
+            "请选择你提供资料的方式。",
             INPUT_MODES,
             "1",
             INPUT_MODE_LABELS,
@@ -933,13 +933,13 @@ def interactive_intake(existing: dict) -> dict:
     input_mode = slot_state["input_mode"] or DEFAULT_INPUT_MODE
 
     if slot_state["source_work"] is None:
-        slot_state["source_work"] = input("Source work (leave blank if this is a fully original character): ").strip()
+        slot_state["source_work"] = input("来源作品（如果是纯原创角色，可以留空）: ").strip()
     source_work = slot_state["source_work"]
 
     search_scope = existing.get("search_scope", DEFAULT_SEARCH_SCOPE)
     if source_decision_policy in {"official_wiki_only", "official_plus_user"} and source_work:
         search_scope = prompt_choice(
-            "Choose the public search scope.",
+            "请选择公开资料补全范围。",
             SEARCH_SCOPES,
             "2",
             SEARCH_SCOPE_LABELS,
@@ -949,17 +949,17 @@ def interactive_intake(existing: dict) -> dict:
     source_paths: list[str] = []
     raw_material_notes = ""
     if input_mode == "file_path":
-        raw_path_block = prompt_multiline("Provide one or more file paths for the source material.")
+        raw_path_block = prompt_multiline("请提供一个或多个资料文件路径。")
         source_paths, raw_material_notes = read_source_paths(raw_path_block)
     elif input_mode == "direct_text":
-        raw_material_notes = prompt_multiline("Paste the source text or notes you want the generator to use.")
+        raw_material_notes = prompt_multiline("请直接贴出你希望用于生成的资料文本或备注。")
 
     if slot_state["material_types"] is None:
         slot_state["material_types"] = infer_material_types_from_policy(source_decision_policy)
 
     if slot_state["allow_low_confidence_persona"] is None:
         slot_state["allow_low_confidence_persona"] = prompt_yes_no(
-            "If the materials are not enough, may I add a little personality supplementation for you",
+            "如果资料不够，允不允许我替你做一点性格补充",
             False,
         )
     allow_low_confidence = slot_state["allow_low_confidence_persona"]
@@ -968,7 +968,7 @@ def interactive_intake(existing: dict) -> dict:
     persona_notes = ""
     style_notes = ""
     effective_slug = slugify(character_name)
-    target_use = existing.get("target_use") or "openclaw roleplay conversation"
+    target_use = existing.get("target_use") or "角色扮演对话"
 
     return {
         "slug": effective_slug,
@@ -1005,15 +1005,15 @@ def build_generated_confirmation_summary(
         SECTION_PLACEHOLDERS["## Short Example Lines"],
     ).splitlines()[0].lstrip("- ").strip()
     summary_lines = [
-        f"- Character: {intake['character_name']}",
-        f"- Slug: {intake['slug']}",
-        f"- Source policy: {SOURCE_DECISION_LABELS.get(intake['source_decision_policy'], intake['source_decision_policy'])}",
-        f"- Input mode: {INPUT_MODE_LABELS.get(intake['input_mode'], intake['input_mode'])}",
-        f"- Source work: {intake['source_work'] or 'original character / not provided'}",
-        f"- Search scope: {SEARCH_SCOPE_LABELS.get(intake.get('search_scope', DEFAULT_SEARCH_SCOPE), intake.get('search_scope', DEFAULT_SEARCH_SCOPE))}",
-        f"- Low-confidence persona: {'yes' if intake['allow_low_confidence_persona'] else 'no'}",
-        f"- Persona preview: {persona_behavior}",
-        f"- Style preview: {style_line}",
+        f"- 角色名：{intake['character_name']}",
+        f"- 标识名（slug）：{intake['slug']}",
+        f"- 资料补全策略：{SOURCE_DECISION_LABELS.get(intake['source_decision_policy'], intake['source_decision_policy'])}",
+        f"- 输入方式：{INPUT_MODE_LABELS.get(intake['input_mode'], intake['input_mode'])}",
+        f"- 来源作品：{intake['source_work'] or '原创角色 / 未提供'}",
+        f"- 联网补全范围：{SEARCH_SCOPE_LABELS.get(intake.get('search_scope', DEFAULT_SEARCH_SCOPE), intake.get('search_scope', DEFAULT_SEARCH_SCOPE))}",
+        f"- 允许性格补充：{'是' if intake['allow_low_confidence_persona'] else '否'}",
+        f"- 人格摘要预览：{persona_behavior}",
+        f"- 语言风格预览：{style_line}",
     ]
     return summary_lines
 
@@ -1057,16 +1057,16 @@ def build_interactive_outputs(
         intake["source_paths"],
         updated_at,
     )
-    print("Review the generated draft summary before any files are written:")
+    print("写入任何文件之前，请先确认这份生成草稿摘要：")
     print("\n".join(build_generated_confirmation_summary(intake, canon_text, persona_text, style_text)))
-    intake["confirmed"] = prompt_yes_no("Confirm this generated draft and allow file creation", False)
+    intake["confirmed"] = prompt_yes_no("确认这份草稿并允许开始写入角色文件吗", False)
     if not intake["confirmed"]:
         raise SystemExit(
             json.dumps(
                 {
                     "status": "aborted",
                     "reason": "intake_not_confirmed",
-                    "message": "Hard intake gate blocked generation before any files were written.",
+                    "message": "硬性 intake gate 已阻止写入，当前没有创建任何角色文件。",
                 },
                 ensure_ascii=False,
                 indent=2,
@@ -1076,9 +1076,9 @@ def build_interactive_outputs(
         intake["export_openclaw"] = True
         intake["openclaw_workspace"] = preset_openclaw_workspace
     else:
-        intake["export_openclaw"] = prompt_yes_no("Also export this character to an OpenClaw workspace", False)
+        intake["export_openclaw"] = prompt_yes_no("是否额外导出一份 OpenClaw 版本", False)
         intake["openclaw_workspace"] = (
-            prompt_required("OpenClaw workspace path") if intake["export_openclaw"] else ""
+            prompt_required("请输入 OpenClaw workspace 路径") if intake["export_openclaw"] else ""
         )
     return canon_text, persona_text, style_text, normalized_payload, intake
 
@@ -1158,7 +1158,7 @@ def main() -> None:
         style_text = ensure_sections(read_text(args.style_file) or style_existing, STYLE_HEADERS)
         name = args.name or existing.get("character_name") or effective_slug or "character"
         source_work = args.source_work or existing.get("source_work", "")
-        target_use = args.target_use or existing.get("target_use", "roleplay conversation")
+        target_use = args.target_use or existing.get("target_use", "角色扮演对话")
         source_types = normalize_source_types(args.source_types or ",".join(existing.get("source_types", DEFAULT_SOURCE_TYPES)))
         allow_low_confidence = parse_bool_flag(
             args.allow_low_confidence_persona,

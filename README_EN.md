@@ -1,90 +1,65 @@
 # dreamlover-skill
 
-> Distill anime and game character materials into one canonical character source, then generate a Codex-first runtime package and an optional OpenClaw export.
+> Distill anime and game character materials into reusable character skills. The top-level skill generates the character package, then installs a Codex version first and optionally exports an OpenClaw version.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
 [![Agent Skill](https://img.shields.io/badge/Agent-Skill-green)](https://github.com/tobemorelucky/dreamlover-skill)
 
-Repo: [tobemorelucky/dreamlover-skill](https://github.com/tobemorelucky/dreamlover-skill)
-
+Repo: [tobemorelucky/dreamlover-skill](https://github.com/tobemorelucky/dreamlover-skill)  
 [中文](README.md)
 
-## What This Repo Does
+## What It Is
 
-`dreamlover-skill` is the top-level generator skill, not the final chat-facing character skill itself.
+`dreamlover-skill` is the generator skill.
 
-It first produces one canonical static character source:
+It first creates one shared static character source:
 
 - `canon.md`
 - `persona.md`
 - `style_examples.md`
 - `meta.json`
 
-That source lives in:
-
-- `characters/{slug}/`
-
-Then it generates platform wrappers from the same static content:
+Then it builds platform wrappers from that source:
 
 - Codex primary install: `./.agents/skills/{slug}/`
 - OpenClaw optional export: `<openclaw_workspace>/.agents/skills/{slug}/`
 
-The static files stay identical across both platforms.
-Only `SKILL.md` and required `runtime/` packaging are platform-specific.
+Treat `characters/{slug}/` as the canonical source.  
+The Codex install and the OpenClaw export are generated outputs and should not be edited by hand.
 
-## Primary Flow
+## Installation
 
-Codex is the primary install target.
+### Claude Code
 
-When a character is generated, the default behavior is:
+```bash
+git clone https://github.com/tobemorelucky/dreamlover-skill ~/.claude/skills/dreamlover-skill
+```
 
-1. write the canonical source to `characters/{slug}/`
-2. install the Codex package to `./.agents/skills/{slug}/`
-3. ask whether to export an OpenClaw version
-4. if yes, ask for the OpenClaw workspace path
-5. export to `<openclaw_workspace>/.agents/skills/{slug}/`
+### Codex
 
-Do not treat the Codex install and the OpenClaw export as two editable sources.
-If the character changes, regenerate or re-export from the canonical source instead.
+```bash
+git clone https://github.com/tobemorelucky/dreamlover-skill $CODEX_HOME/skills/dreamlover-skill
+```
 
-## Layer Separation
+### Requirements
 
-- `canon.md`: facts, setting, confirmed events, confirmed relationships
-- `persona.md`: behavior patterns, interaction strategy, boundaries
-- `style_examples.md`: wording texture and short example lines
-
-## Conditional Memory
-
-Generated child skills keep conditional memory, but runtime memory is not part of the static character package.
-
-- runtime database path: `<workspace>/.dreamlover-data/memory.sqlite3`
-- `.dreamlover-data/` is not copied into skill directories
-- small talk should usually skip memory entirely
-- call `runtime/memory_prepare.py` only when needed
-- call `runtime/memory_commit.py` only when a write is needed after the reply
-- call `runtime/memory_summarize.py` only when the threshold is reached
-
-If `python3` is unavailable, the child skill should gracefully fall back to no-memory mode.
+- Python 3.9+
+- The current version is text-first
+- `python3` is required if you want conditional memory at runtime
 
 ## Usage
 
-### Generate with the top-level skill
+### 1. Create a character with the top-level skill
 
 ```text
 $dreamlover-skill
 Help me create a Rem character skill
 ```
 
-Expected flow:
+The generator should run intake first, confirm the draft, install the Codex package, and then optionally export an OpenClaw package.
 
-1. intake gate
-2. generated draft summary confirmation
-3. canonical source is written
-4. Codex package is installed
-5. optional OpenClaw export is offered
-
-### CLI generation
+### 2. Create from CLI
 
 ```bash
 python tools/skill_writer.py --action create --interactive
@@ -92,57 +67,49 @@ python tools/skill_writer.py --action create --slug rem --name "Rem"
 python tools/skill_writer.py --action create --slug rem --name "Rem" --openclaw-workspace /path/to/openclaw-workspace
 ```
 
-## Codex Usage
+### 3. Use the generated child skill in Codex
 
-After generation, the Codex package should exist at:
+After generation, the Codex child skill should be at:
 
 ```text
-./.agents/skills/rem/
+./.agents/skills/{slug}/
 ```
 
-Then in Codex:
+Check and invoke it with:
 
 ```text
 /skills
 $rem
 ```
 
-## OpenClaw Usage
+### 4. Use the exported package in OpenClaw
 
-If export is enabled, the OpenClaw package should exist at:
+If export is enabled, the OpenClaw package should be at:
 
 ```text
-<openclaw_workspace>/.agents/skills/rem/
+<openclaw_workspace>/.agents/skills/{slug}/
 ```
 
-Then in OpenClaw:
+Then:
 
 - refresh skills or start a new session
 - let OpenClaw discover the child skill from the workspace
-- trigger the character naturally through normal conversation
+- trigger it through normal conversation
 
-The OpenClaw package shares the same static character files, but uses an OpenClaw-specific wrapper `SKILL.md`.
+## Conditional Memory
 
-## Path and Export Guarantees
+Generated child skills keep conditional memory:
 
-To avoid path bugs, exported OpenClaw packages do not rely on hard-coded home directories.
+- small talk should usually skip memory
+- memory is only read or written when the gate is hit
+- runtime data lives in `<workspace>/.dreamlover-data/memory.sqlite3`
+- `.dreamlover-data/` is not copied into the skill package
 
-The current design is:
+If `python3` is unavailable, the child skill should fall back to no-memory mode instead of failing entirely.
 
-- static role files live directly in `<openclaw_workspace>/.agents/skills/{slug}/`
-- runtime scripts live in `<openclaw_workspace>/.agents/skills/{slug}/runtime/`
-- the wrapper calls local `runtime/` scripts through relative paths
-- the wrapper writes memory to `<workspace>/.dreamlover-data/` through a relative `--data-root`
+## Minimal Verification
 
-That means:
-
-- you do not need to copy the entire repo into the OpenClaw workspace
-- export should not break because a different machine uses a different home path
-- runtime memory is kept out of the exported skill directory
-
-## Local Verification
-
-### Verify canonical + Codex generation
+### Verify Codex primary install
 
 ```bash
 python tools/skill_writer.py --action create --interactive
@@ -150,8 +117,8 @@ python tools/skill_writer.py --action create --interactive
 
 Expected result:
 
-- `characters/{slug}/` contains the canonical source
-- `./.agents/skills/{slug}/` contains the Codex package
+- `characters/{slug}/` contains the shared static source
+- `./.agents/skills/{slug}/` contains the Codex-ready child skill
 
 ### Verify OpenClaw export
 
@@ -162,29 +129,8 @@ python tools/skill_writer.py --action create --slug rem --name "Rem" --openclaw-
 Expected result:
 
 - `/tmp/openclaw-demo/.agents/skills/rem/` exists
-- `canon.md`, `persona.md`, `style_examples.md`, and `meta.json` match the Codex package
-- only `SKILL.md` and `runtime/` differ by platform
-
-### Verify memory gate behavior
-
-```bash
-python scripts/memory_prepare.py --character-slug rem --user-message "The weather is nice today."
-python scripts/memory_prepare.py --character-slug rem --user-message "Do you remember what I told you last time?"
-python scripts/memory_prepare.py --character-slug rem --user-message "From now on, call me Azhao."
-```
-
-Expected result:
-
-- small talk: no read, no write
-- explicit memory question: read
-- stable nickname preference: write after the reply
-
-## Notes
-
-- the canonical source is the only recommended editable source
-- do not hand-edit exported Codex or OpenClaw directories
-- regenerate or re-export when the character changes
-- the current version is still text-first and does not process image, audio, or video inputs
+- static files match the Codex package
+- only `SKILL.md` and required `runtime/` differ by platform
 
 ## License
 
