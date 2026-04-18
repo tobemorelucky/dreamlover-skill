@@ -66,7 +66,7 @@ Ask these in sequence:
 5. if the user chooses file paths, ask them for the paths and read those files first
 6. if the character name was already in the user's request, ask only for name confirmation instead of asking for the name again
 7. source work may be blank for a fully original character
-8. if public completion is allowed and source work exists, ask for search scope: small, medium, or large
+8. if public completion is allowed and source work exists, ask for public search scope: none, small, medium, or large
 9. ask whether personality supplementation is allowed when the materials are thin
 
 The first intake reply for an underspecified request should contain only question 1 plus its options.
@@ -76,6 +76,17 @@ Do not ask for `target use` during the hard intake gate unless the user explicit
 Use the default target use `openclaw roleplay conversation` when no explicit target use is supplied.
 
 If the current branch still requires input mode and the user has not answered it yet, the hard intake gate is still incomplete.
+
+## Permission Discipline
+
+Minimize permission prompts during creation work:
+
+- do not browse or search public sources unless the user explicitly selected a public-material policy
+- after public completion is allowed, ask for the public search scope exactly once and reuse that decision
+- if the user chooses `none`, do not perform any public search
+- if the user provides file paths, collect all paths first and read them in one batch instead of prompting path-by-path
+- if public search is needed, do it in one compact search pass rather than repeated small searches
+- do not request extra permissions for optional steps until the required intake is complete
 
 ## Core Workflow
 

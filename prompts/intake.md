@@ -50,7 +50,7 @@ Branching rules:
 - if the user chooses file paths, ask them to provide the file paths and read those first
 - do not ask for the character name again if it was already present in the original request; instead ask for a direct confirmation like `Use <name> as the character name?`
 - source work may be blank; blank means the character can be fully original and no public lookup should be assumed
-- if public-material completion is allowed and source work exists, ask for public search scope: small, medium, or large
+- if public-material completion is allowed and source work exists, ask for public search scope: none, small, medium, or large
 - ask whether low-confidence persona supplementation is allowed using the wording `If the materials are not enough, may I add a little personality supplementation for you`
 
 Do not ask for target use during the hard intake gate unless the user explicitly wants to customize it.
@@ -59,6 +59,14 @@ Do not include a `minimal confirmation template` shortcut block.
 Generate the draft in memory first, then repeat key personality and important factors back to the user for confirmation before any files are written.
 The very first intake reply should contain only the source completion policy question and its options.
 After the draft is confirmed, install the Codex package first and then ask whether the user also wants an OpenClaw export.
+
+## Permission Discipline
+
+- do not trigger public search unless the user explicitly allows a public-material policy
+- once public search is allowed, ask for search scope once and keep that answer
+- if search scope is `none`, skip public search entirely
+- if the user chooses file paths, collect all paths and read them in one batch
+- prefer one compact search batch over repeated searches
 
 If the user only provides a name, or has not answered the unresolved required slots for the chosen branch, the intake is not complete yet.
 

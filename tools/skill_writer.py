@@ -33,6 +33,8 @@ DEFAULT_ARCHIVE_ROOT = Path("characters")
 DEFAULT_SOURCE_TYPES = ["user"]
 DEFAULT_SOURCE_DECISION_POLICY = "user_only"
 DEFAULT_INPUT_MODE = "direct_text"
+PUBLIC_SEARCH_INPUT_MODE = "public_search"
+QUICK_GENERATE_INPUT_MODE = "quick_generate"
 DEFAULT_SEARCH_SCOPE = "none"
 SOURCE_DECISION_POLICIES = {
     "1": "user_only",
@@ -51,6 +53,7 @@ INPUT_MODES = {
     "2": "file_path",
 }
 SEARCH_SCOPES = {
+    "0": "none",
     "1": "small",
     "2": "medium",
     "3": "large",
@@ -58,6 +61,8 @@ SEARCH_SCOPES = {
 INPUT_MODE_LABELS = {
     "direct_text": "直接贴文本",
     "file_path": "文件路径",
+    "public_search": "不直接提供，由公开资料补全",
+    "quick_generate": "快速生成内置流程",
 }
 SEARCH_SCOPE_LABELS = {
     "none": "不联网补全",
@@ -70,6 +75,7 @@ CANONICAL_SLOTS = [
     "input_mode",
     "character_name",
     "source_work",
+    "search_scope",
     "material_types",
     "allow_low_confidence_persona",
     "archive_mirror",
@@ -115,6 +121,10 @@ INPUT_MODE_ALIASES = {
     "file_path": "file_path",
 }
 SEARCH_SCOPE_ALIASES = {
+    "0": "none",
+    "不检索": "none",
+    "不联网": "none",
+    "none": "none",
     "1": "small",
     "小": "small",
     "小范围": "small",
@@ -374,6 +384,9 @@ def parse_bool_flag(value: str | None, default: bool = False) -> bool:
         "允许补充",
         "可以",
         "可以补充",
+        "是",
+        "好",
+        "确认",
     }:
         return True
     if normalized in {
@@ -387,6 +400,9 @@ def parse_bool_flag(value: str | None, default: bool = False) -> bool:
         "不要补充",
         "不可以",
         "否",
+        "不是",
+        "不用",
+        "取消",
     }:
         return False
     raise ValueError(f"Unsupported boolean value: {value}")
@@ -474,6 +490,7 @@ def build_slot_state(existing: dict) -> dict:
         "input_mode": existing.get("input_mode"),
         "character_name": existing.get("character_name") or existing.get("requested_character_name"),
         "source_work": existing.get("source_work"),
+        "search_scope": existing.get("search_scope"),
         "material_types": existing.get("source_types"),
         "allow_low_confidence_persona": existing.get("allow_low_confidence_persona"),
         "archive_mirror": existing.get("archive_mirror"),
@@ -496,6 +513,8 @@ def compute_missing_slots(slot_state: dict, source_policy: str | None) -> list[s
         required.append("input_mode")
     if source_policy != "official_quick" and slot_state.get("source_work") is None:
         required.append("source_work")
+    if source_policy in {"official_wiki_only", "official_plus_user"} and slot_state.get("source_work"):
+        required.append("search_scope")
     return [slot for slot in CANONICAL_SLOTS if slot in required and slot_state.get(slot) is None]
 
 
@@ -911,8 +930,8 @@ def interactive_intake(existing: dict) -> dict:
             "source_types": infer_material_types_from_policy(source_decision_policy),
             "allow_low_confidence_persona": existing.get("allow_low_confidence_persona", False),
             "source_decision_policy": source_decision_policy,
-            "input_mode": DEFAULT_INPUT_MODE,
-            "search_scope": "medium",
+            "input_mode": QUICK_GENERATE_INPUT_MODE,
+            "search_scope": "none",
             "source_paths": [],
             "archive_mirror": slot_state["archive_mirror"],
             "raw_material_notes": "",
@@ -930,21 +949,27 @@ def interactive_intake(existing: dict) -> dict:
             INPUT_MODE_LABELS,
             INPUT_MODE_ALIASES,
         )
+    if source_decision_policy == "official_wiki_only":
+        slot_state["input_mode"] = PUBLIC_SEARCH_INPUT_MODE
     input_mode = slot_state["input_mode"] or DEFAULT_INPUT_MODE
 
     if slot_state["source_work"] is None:
         slot_state["source_work"] = input("来源作品（如果是纯原创角色，可以留空）: ").strip()
     source_work = slot_state["source_work"]
 
-    search_scope = existing.get("search_scope", DEFAULT_SEARCH_SCOPE)
-    if source_decision_policy in {"official_wiki_only", "official_plus_user"} and source_work:
+    if source_decision_policy in {"official_wiki_only", "official_plus_user"} and not source_work:
+        slot_state["search_scope"] = "none"
+
+    search_scope = slot_state.get("search_scope", existing.get("search_scope", DEFAULT_SEARCH_SCOPE))
+    if source_decision_policy in {"official_wiki_only", "official_plus_user"} and source_work and slot_state.get("search_scope") is None:
         search_scope = prompt_choice(
-            "请选择公开资料补全范围。",
+            "请选择公开资料检索范围。",
             SEARCH_SCOPES,
-            "2",
+            "1",
             SEARCH_SCOPE_LABELS,
             SEARCH_SCOPE_ALIASES,
         )
+        slot_state["search_scope"] = search_scope
 
     source_paths: list[str] = []
     raw_material_notes = ""
@@ -1010,7 +1035,7 @@ def build_generated_confirmation_summary(
         f"- 资料补全策略：{SOURCE_DECISION_LABELS.get(intake['source_decision_policy'], intake['source_decision_policy'])}",
         f"- 输入方式：{INPUT_MODE_LABELS.get(intake['input_mode'], intake['input_mode'])}",
         f"- 来源作品：{intake['source_work'] or '原创角色 / 未提供'}",
-        f"- 联网补全范围：{SEARCH_SCOPE_LABELS.get(intake.get('search_scope', DEFAULT_SEARCH_SCOPE), intake.get('search_scope', DEFAULT_SEARCH_SCOPE))}",
+        f"- 公开资料检索范围：{SEARCH_SCOPE_LABELS.get(intake.get('search_scope', DEFAULT_SEARCH_SCOPE), intake.get('search_scope', DEFAULT_SEARCH_SCOPE))}",
         f"- 允许性格补充：{'是' if intake['allow_low_confidence_persona'] else '否'}",
         f"- 人格摘要预览：{persona_behavior}",
         f"- 语言风格预览：{style_line}",

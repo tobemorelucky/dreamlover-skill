@@ -59,6 +59,15 @@ Help me create a Rem character skill
 
 The generator should run intake first, confirm the draft, install the Codex package, and then optionally export an OpenClaw package.
 
+If public completion is allowed, the generator should ask once for the public search scope:
+
+- none
+- small
+- medium
+- large
+
+That choice should be reused instead of repeatedly requesting the same kind of permission.
+
 ### 2. Create from CLI
 
 ```bash
@@ -66,6 +75,8 @@ python tools/skill_writer.py --action create --interactive
 python tools/skill_writer.py --action create --slug rem --name "Rem"
 python tools/skill_writer.py --action create --slug rem --name "Rem" --openclaw-workspace /path/to/openclaw-workspace
 ```
+
+If you choose file-path mode, provide all paths in one batch whenever possible so the generator can read them in one pass.
 
 ### 3. Use the generated child skill in Codex
 

@@ -63,6 +63,14 @@ $dreamlover-skill
 生成器会先进行中文 intake。  
 确认草稿后，会先安装 Codex 版本，再询问你是否要额外导出 OpenClaw 版本。
 
+如果你允许使用公开资料补全，系统会再问一次公开资料检索范围：
+
+- 不检索
+- 小范围
+- 中范围
+- 大范围
+
+
 ### 2. CLI 创建
 
 ```bash
@@ -70,6 +78,7 @@ python tools/skill_writer.py --action create --interactive
 python tools/skill_writer.py --action create --slug rem --name "Rem"
 python tools/skill_writer.py --action create --slug rem --name "Rem" --openclaw-workspace /path/to/openclaw-workspace
 ```
+
 
 ### 3. Codex 中使用子角色
 

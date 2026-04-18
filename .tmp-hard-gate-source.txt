@@ -1,0 +1,2 @@
+This is a small source file for hard intake gate verification.
+It stands in for a directly supplied path-based source bundle.
