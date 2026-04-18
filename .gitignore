@@ -1,20 +1,16 @@
 ﻿__pycache__/
 *.pyc
-
 .tmp*/
-.tmp-*/
+.tmp-*
 .temp*/
 .dreamlover-data/
 
-# generated Codex child skills
 .agents/skills/**
 !.agents/skills/
 !.agents/skills/.gitkeep
 
-# canonical source dirs: keep folder, ignore generated roles if you want
-characters/*/
+characters/**
 !characters/.gitkeep
 
-# accidental local install/test dirs
 $CODEX_HOME/
 n/
